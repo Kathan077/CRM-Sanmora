@@ -167,10 +167,14 @@ const FollowUpTableRow = React.memo(function FollowUpTableRow({
       </td>
 
       {/* NOTES */}
-      <td>
-        <div className="notes-bubble" title={f.notes}>
-          "{f.notes}"
-        </div>
+      <td className="fup-td-notes">
+        {f.notes ? (
+          <div className="notes-bubble" title={f.notes}>
+            "{f.notes}"
+          </div>
+        ) : (
+          <span className="dash-text">—</span>
+        )}
       </td>
 
       {/* LEAD / INQUIRY NO */}
@@ -1201,7 +1205,7 @@ export default function FollowupsPage() {
                       <th>CUSTOMER NAME</th>
                       <th>MOBILE NO</th>
                       <th>NEXT FOLLOWUP</th>
-                      <th>NOTES</th>
+                      <th className="fup-th-notes">NOTES</th>
                       <th>LEAD / INQUIRY NO</th>
                       <th>STATUS</th>
                     </tr>

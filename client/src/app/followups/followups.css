@@ -962,7 +962,7 @@
 
 .fup-pro-table {
   width: 100%;
-  min-width: 1150px;
+  min-width: 1260px;
   border-collapse: collapse;
   text-align: center;
 }
@@ -1211,21 +1211,34 @@
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
+.fup-th-notes,
+.fup-td-notes {
+  min-width: 220px !important;
+  max-width: 320px !important;
+  width: 250px !important;
+  text-align: left !important;
+}
+
 .notes-bubble {
-  display: inline-block;
-  background: rgba(248, 250, 252, 0.8);
+  display: block;
+  width: 100%;
+  min-width: 200px;
+  max-width: 300px;
+  background: rgba(248, 250, 252, 0.95);
   border: 1px solid #E2E8F0;
-  border-left: 3px solid #7C3AED;
-  padding: 6px 12px 6px 10px;
+  border-left: 3.5px solid #7C3AED;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
   color: #334155;
   font-style: normal;
-  max-width: 100%;
-  white-space: pre-wrap !important;
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
   text-align: left;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .inquiry-pill {
