@@ -1,0 +1,253 @@
+/* Global Celebration Announcement Banner Styles — ULTRA PRO WHITE & LINEAR SPARKLE ACCENT EDITION */
+
+.global-announcement-wrapper {
+  position: relative;
+  width: 100%;
+  z-index: 99;
+  background: linear-gradient(135deg, #EEECFA 0%, #E6E2F8 40%, #F4E8F8 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #0F172A;
+  font-family: inherit;
+  box-shadow: 0 4px 22px rgba(124, 58, 237, 0.12);
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, #7C3AED 0%, #3B82F6 35%, #EC4899 70%, #F59E0B 100%) 1;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Dark Theme Support */
+[data-theme='dark'] .global-announcement-wrapper,
+.dark .global-announcement-wrapper {
+  background: rgba(15, 23, 42, 0.96);
+  color: #F8FAFC;
+  border-image: linear-gradient(90deg, #A78BFA 0%, #60A5FA 35%, #FB7185 70%, #FBBF24 100%) 1;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+}
+
+.global-announcement-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 22px;
+  gap: 16px;
+  min-height: 48px;
+}
+
+/* Category Badge Styling — PRO VIBRANT LINEAR BADGES */
+.announcement-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 22px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.2);
+  flex-shrink: 0;
+}
+
+.announcement-category-badge.celebration {
+  background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%);
+  color: #FFFFFF;
+}
+
+.announcement-category-badge.important {
+  background: linear-gradient(135deg, #DC2626 0%, #F59E0B 100%);
+  color: #FFFFFF;
+}
+
+.announcement-category-badge.achievement {
+  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+  color: #FFFFFF;
+}
+
+.announcement-category-badge.salestarget {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  color: #FFFFFF;
+}
+
+/* Scrolling Ticker Track ("ghoomti marquee") */
+.announcement-ticker-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 2%, black 98%, transparent 100%);
+}
+
+.announcement-ticker-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: marqueeScroll 26s linear infinite;
+  will-change: transform;
+}
+
+.announcement-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Text Readability Optimization — CRISP WHITE BACKDROP WITH DARK SLATE TEXT */
+.announcement-item-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: #0F172A;
+  padding-right: 56px;
+  letter-spacing: -0.01em;
+}
+
+[data-theme='dark'] .announcement-item-text,
+.dark .announcement-item-text {
+  color: #F8FAFC;
+}
+
+.announcement-publisher-tag {
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: #5B21B6;
+  background: rgba(124, 58, 237, 0.12);
+  padding: 3px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.08);
+}
+
+[data-theme='dark'] .announcement-publisher-tag,
+.dark .announcement-publisher-tag {
+  color: #C4B5FD;
+  background: rgba(167, 139, 250, 0.14);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.announcement-sparkle-icn {
+  color: #7C3AED;
+  animation: pulseGlow 1.5s infinite alternate;
+}
+
+[data-theme='dark'] .announcement-sparkle-icn,
+.dark .announcement-sparkle-icn {
+  color: #FBBF24;
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.92); opacity: 0.85; }
+  100% { transform: scale(1.2); opacity: 1; filter: drop-shadow(0 0 6px rgba(124, 58, 237, 0.5)); }
+}
+
+.announcement-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.announcement-dismiss-btn {
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  color: #7C3AED;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .announcement-dismiss-btn,
+.dark .announcement-dismiss-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+.announcement-dismiss-btn:hover {
+  background: #EF4444;
+  border-color: #EF4444;
+  color: #FFFFFF;
+  transform: scale(1.1);
+}
+
+/* Collapsed Mini Trigger Pill (for Header) */
+.announcement-header-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.3);
+  transition: all 0.25s ease;
+  animation: bounceMini 2s infinite;
+}
+
+.announcement-header-trigger:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 5px 18px rgba(124, 58, 237, 0.45);
+}
+
+@keyframes bounceMini {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@media (max-width: 768px) {
+  .global-announcement-bar {
+    padding: 8px 14px;
+    gap: 10px;
+    min-height: 44px;
+  }
+  .announcement-category-badge {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+  }
+  .announcement-item-text {
+    font-size: 0.85rem;
+  }
+}
+
+/* Celebration Sparkles Canvas Layer - FULL VIEWPORT OVERLAY */
+.celebration-sparkles-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999999;
+}
+
+.announcement-category-badge {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.announcement-category-badge:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.4);
+}
+

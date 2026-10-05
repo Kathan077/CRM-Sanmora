@@ -1,0 +1,284 @@
+/* ============================================================
+   SANMORA CRM — PRO EXECUTIVE DROPDOWN STYLING
+   Executive Portal Popover Specs matching CustomLeadStatusDropdown
+   ============================================================ */
+
+.swo-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* ── TRIGGER BUTTON ────────────────────────────────────────── */
+.swo-trigger-btn {
+  position: relative !important;
+  width: 100%;
+  padding: 10.5px 38px 10.5px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #E2E8F0;
+  background: #F8FAFC !important;
+  background-image: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Metropolis', system-ui, -apple-system, sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.swo-trigger-btn.lcm-select-has-badge {
+  padding-left: 54px !important;
+}
+
+.swo-trigger-btn:hover {
+  border-color: #7C3AED;
+  background: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.14);
+}
+
+.swo-trigger-btn.is-active {
+  border-color: #7C3AED;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 3.5px rgba(124, 58, 237, 0.16), 0 6px 18px rgba(124, 58, 237, 0.12);
+}
+
+.swo-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.swo-trigger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+.swo-trigger-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swo-trigger-arrow {
+  position: absolute !important;
+  right: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #64748B;
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+  pointer-events: none;
+}
+
+.swo-trigger-arrow.open {
+  transform: translateY(-50%) rotate(180deg) !important;
+  color: #7C3AED;
+}
+
+/* ── PORTAL FLOATING POPOVER MENU ──────────────────────────── */
+.swo-popover-portal {
+  pointer-events: auto;
+}
+
+.swo-popover-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  box-shadow: 0 16px 45px -8px rgba(124, 58, 237, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.swo-popover-scroll {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.swo-popover-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.swo-popover-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 99px;
+}
+
+/* ── OPTION ITEMS ─────────────────────────────────────────── */
+.swo-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  color: #334155;
+  user-select: none;
+}
+
+.swo-option-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swo-option-icon {
+  display: flex;
+  align-items: center;
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+.swo-option-icon-other {
+  color: #2563EB;
+  flex-shrink: 0;
+}
+
+.swo-option-label-text {
+  letter-spacing: -0.01em;
+}
+
+.swo-option-item:hover {
+  background: #F8FAFC;
+  color: #7C3AED;
+  transform: translateX(2px);
+}
+
+.swo-option-item.selected {
+  background: #F3E8FF;
+  color: #7C3AED;
+  font-weight: 700;
+}
+
+.swo-option-check {
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+.swo-option-item.is-other-opt {
+  border-top: 1px dashed rgba(124, 58, 237, 0.2);
+  margin-top: 3px;
+  padding-top: 10px;
+  color: #2563EB;
+}
+
+.swo-option-item.is-other-opt:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1D4ED8;
+}
+
+/* ── CUSTOM TYPING MODE ────────────────────────────────────── */
+.swo-custom-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.swo-custom-input {
+  flex: 1;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #3B82F6;
+  background: rgba(59, 130, 246, 0.05);
+  color: #0F172A;
+  outline: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 0 3.5px rgba(59, 130, 246, 0.15);
+  box-sizing: border-box;
+}
+
+.swo-custom-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22);
+}
+
+.swo-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #CBD5E1;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.swo-btn-back:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+  border-color: #94A3B8;
+}
+
+/* ── DARK THEME OVERRIDES ──────────────────────────────────── */
+[data-theme='dark'] .swo-trigger-btn,
+.dark .swo-trigger-btn {
+  background: #1E293B !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme='dark'] .swo-trigger-btn:hover,
+.dark .swo-trigger-btn:hover {
+  border-color: #A78BFA !important;
+  background: #0F172A !important;
+}
+
+[data-theme='dark'] .swo-popover-card,
+.dark .swo-popover-card {
+  background: #0F172A !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme='dark'] .swo-option-item,
+.dark .swo-option-item {
+  color: #E2E8F0 !important;
+}
+
+[data-theme='dark'] .swo-option-item:hover,
+.dark .swo-option-item:hover {
+  background: rgba(30, 41, 59, 0.85) !important;
+  color: #C084FC !important;
+}
+
+[data-theme='dark'] .swo-option-item.selected,
+.dark .swo-option-item.selected {
+  background: rgba(167, 139, 250, 0.2) !important;
+  color: #C084FC !important;
+}
+
+[data-theme='dark'] .swo-custom-input,
+.dark .swo-custom-input {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #F8FAFC !important;
+  border-color: #60A5FA !important;
+}

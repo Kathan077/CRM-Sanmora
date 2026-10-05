@@ -1,0 +1,218 @@
+/* ============================================================
+   SANMORA CRM — PRO EXECUTIVE FILTER DROPDOWN CSS
+   Executive Portal Popover matching CustomLeadStatusDropdown
+   ============================================================ */
+
+.pro-filter-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pro-filter-btn {
+  position: relative;
+  height: 40px;
+  padding: 0 34px 0 14px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Metropolis', system-ui, -apple-system, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0F172A;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  outline: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.pro-filter-btn:hover {
+  border-color: #8B5CF6;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.14);
+}
+
+.pro-filter-btn.is-active {
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3.5px rgba(124, 58, 237, 0.16), 0 6px 18px rgba(124, 58, 237, 0.12);
+}
+
+.pro-filter-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pro-filter-left-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+.pro-filter-left-icon svg {
+  position: static !important;
+  transform: none !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  margin: 0 !important;
+}
+
+.pro-filter-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.pro-filter-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748B;
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+}
+
+.pro-filter-chevron.open {
+  transform: translateY(-50%) rotate(180deg);
+  color: #7C3AED;
+}
+
+/* ── POPOVER CARD ──────────────────────────────────────────── */
+.pro-filter-portal {
+  pointer-events: auto;
+}
+
+.pro-filter-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.pro-filter-scroll {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.pro-filter-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.pro-filter-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 99px;
+}
+
+/* ── OPTION ITEMS ─────────────────────────────────────────── */
+.pro-filter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.pro-option-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pro-option-icon {
+  display: flex;
+  align-items: center;
+  color: #475569;
+  flex-shrink: 0;
+  transition: color 0.18s ease;
+}
+
+.pro-option-label {
+  letter-spacing: -0.01em;
+}
+
+.pro-option-check {
+  color: #2563EB;
+  flex-shrink: 0;
+}
+
+.pro-filter-option:hover {
+  background: #F8FAFC;
+  color: #1E293B;
+  transform: translateX(2px);
+}
+
+.pro-filter-option:hover .pro-option-icon {
+  color: #2563EB;
+}
+
+.pro-filter-option.selected {
+  background: #F1F5F9;
+  color: #0F172A;
+  font-weight: 700;
+}
+
+.pro-filter-option.selected .pro-option-icon {
+  color: #2563EB;
+}
+
+/* ── DARK THEME OVERRIDES ──────────────────────────────────── */
+[data-theme='dark'] .pro-filter-btn,
+.dark .pro-filter-btn {
+  background: #1E293B !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme='dark'] .pro-filter-btn:hover,
+.dark .pro-filter-btn:hover {
+  border-color: #A78BFA !important;
+}
+
+[data-theme='dark'] .pro-filter-card,
+.dark .pro-filter-card {
+  background: #0F172A !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme='dark'] .pro-filter-option,
+.dark .pro-filter-option {
+  color: #E2E8F0 !important;
+}
+
+[data-theme='dark'] .pro-filter-option:hover,
+.dark .pro-filter-option:hover {
+  background: rgba(30, 41, 59, 0.85) !important;
+  color: #C084FC !important;
+}
+
+[data-theme='dark'] .pro-filter-option.selected,
+.dark .pro-filter-option.selected {
+  background: rgba(167, 139, 250, 0.2) !important;
+  color: #C084FC !important;
+}

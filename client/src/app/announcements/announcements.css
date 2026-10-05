@@ -1,0 +1,563 @@
+/* ==========================================================================
+   SANMORA CRM — ULTRA-LUXURY ANNOUNCEMENT & CELEBRATION CENTER STYLES
+   Pixel-Perfect Matching Screenshot · World-Class SaaS Design
+   ========================================================================== */
+
+.announcements-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Hero Section — ULTRA PRO GLASS THEME WITH HIGH CONTRAST TEXT */
+.announcements-hero {
+  border-radius: 24px;
+  padding: 26px 34px;
+  background: linear-gradient(135deg, #EEECFA 0%, #E6E2F8 40%, #F4E8F8 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  border-top: 4px solid #7C3AED;
+  box-shadow: 
+    0 16px 40px -10px rgba(124, 58, 237, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: #0F172A;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+/* Dark Theme Support for Hero */
+[data-theme='dark'] .announcements-hero,
+.dark .announcements-hero {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 27, 75, 0.9) 100%);
+  border-color: rgba(167, 139, 250, 0.25);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.5);
+  color: #F8FAFC;
+}
+
+.announcements-hero::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.announcements-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.announcements-hero-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+  flex-shrink: 0;
+}
+
+.announcements-hero-title h2 {
+  font-size: 1.4rem;
+  font-weight: 850;
+  margin: 0;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+}
+
+[data-theme='dark'] .announcements-hero-title h2,
+.dark .announcements-hero-title h2 {
+  color: #F8FAFC;
+}
+
+.announcements-hero-sub {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 3px;
+}
+
+[data-theme='dark'] .announcements-hero-sub,
+.dark .announcements-hero-sub {
+  color: #C4B5FD;
+}
+
+/* Layout Grid */
+.announcements-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .announcements-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form Card */
+.publish-card {
+  background: #FFFFFF;
+  border: 1.5px solid rgba(124, 58, 237, 0.16);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 
+    0 10px 30px -8px rgba(124, 58, 237, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+[data-theme='dark'] .publish-card,
+.dark .publish-card {
+  background: #0F172A;
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.publish-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+.publish-card-header h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+[data-theme='dark'] .publish-card-header h3,
+.dark .publish-card-header h3 {
+  color: #F8FAFC;
+}
+
+.form-group-ann {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group-ann label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ann-input-text {
+  width: 100%;
+  min-height: 90px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(124, 58, 237, 0.18);
+  background: #FFFFFF;
+  color: #0F172A;
+  font-size: 0.9rem;
+  font-weight: 500;
+  resize: vertical;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .ann-input-text,
+.dark .ann-input-text {
+  background: #1E293B;
+  color: #F8FAFC;
+  border-color: rgba(167, 139, 250, 0.25);
+}
+
+.ann-input-text:focus {
+  border-color: #7C3AED;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.16);
+}
+
+.category-select-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.category-radio-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(124, 58, 237, 0.16);
+  background: #F8FAFC;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+  transition: all 0.2s ease;
+}
+
+.category-radio-btn:hover {
+  background: rgba(124, 58, 237, 0.06);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.category-radio-btn.selected {
+  border-color: #7C3AED;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(37, 99, 235, 0.08) 100%);
+  color: #7C3AED;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.15);
+}
+
+.btn-publish-ann {
+  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 50%, #2563EB 100%);
+  color: #FFFFFF;
+  border: none;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+  transition: all 0.25s ease;
+  margin-top: 4px;
+}
+
+.btn-publish-ann:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.45);
+}
+
+.btn-publish-ann:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* History Card & Container */
+.history-card {
+  background: #FFFFFF;
+  border: 1.5px solid rgba(124, 58, 237, 0.16);
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 
+    0 10px 30px -8px rgba(124, 58, 237, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .history-card,
+.dark .history-card {
+  background: #0F172A;
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+/* --- ULTRA LUXURY UNIFORM TABLE CONTAINER --- */
+.announcements-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1.5px solid rgba(124, 58, 237, 0.14);
+  background: #FFFFFF;
+  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.04);
+}
+
+[data-theme='dark'] .announcements-table-container,
+.dark .announcements-table-container {
+  background: #0F172A;
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.ann-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.ann-table th {
+  text-align: left;
+  padding: 16px 20px;
+  font-size: 0.73rem;
+  font-weight: 850;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-bottom: 1.5px solid rgba(124, 58, 237, 0.12);
+  background: #F8FAFC;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .ann-table th,
+.dark .ann-table th {
+  background: #1E293B;
+  color: #94A3B8;
+  border-bottom-color: rgba(167, 139, 250, 0.2);
+}
+
+.ann-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.9rem;
+  color: #0F172A;
+  vertical-align: middle;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+[data-theme='dark'] .ann-table td,
+.dark .ann-table td {
+  color: #F8FAFC;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.ann-table tr {
+  background: transparent;
+}
+
+.ann-table tr:hover td {
+  background: #FAF5FF;
+}
+
+[data-theme='dark'] .ann-table tr:hover td,
+.dark .ann-table tr:hover td {
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.ann-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Category Badge Pills — Oval Rounded Luxury Gradient Pill */
+.category-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.22);
+}
+
+.category-badge-pill.celebration {
+  background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #EC4899 100%);
+  color: #FFFFFF;
+}
+
+.category-badge-pill.important {
+  background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%);
+  color: #FFFFFF;
+}
+
+.category-badge-pill.achievement {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #FFFFFF;
+}
+
+.category-badge-pill.salestarget {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+}
+
+/* Text Cell Formatting */
+.ann-text-cell {
+  max-width: 260px;
+  font-weight: 750;
+  color: #0F172A;
+  line-height: 1.4;
+  font-size: 0.92rem;
+  word-break: break-word;
+  white-space: normal;
+}
+
+[data-theme='dark'] .ann-text-cell,
+.dark .ann-text-cell {
+  color: #F8FAFC;
+}
+
+.ann-publisher-cell {
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.ann-publisher-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 750;
+  font-size: 0.82rem;
+  color: #6D28D9;
+  background: rgba(124, 58, 237, 0.08);
+  padding: 5px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  line-height: 1;
+}
+
+[data-theme='dark'] .ann-publisher-badge,
+.dark .ann-publisher-badge {
+  color: #DDD6FE;
+  background: rgba(167, 139, 250, 0.16);
+  border-color: rgba(167, 139, 250, 0.35);
+}
+
+.ann-duration-cell {
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.ann-dur-hours {
+  font-weight: 850;
+  color: #0F172A;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+[data-theme='dark'] .ann-dur-hours,
+.dark .ann-dur-hours {
+  color: #F8FAFC;
+}
+
+.ann-dur-date {
+  font-size: 0.76rem;
+  color: #64748B;
+  margin-top: 2px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+/* Status Pills — Radiant Glowing Active Dot */
+.status-pill-ann {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-pill-ann.active {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1.5px solid rgba(16, 185, 129, 0.4);
+  color: #047857;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.14);
+}
+
+[data-theme='dark'] .status-pill-ann.active,
+.dark .status-pill-ann.active {
+  background: rgba(52, 211, 153, 0.18);
+  color: #34D399;
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.ann-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+  animation: annPulse 1.6s infinite alternate;
+}
+
+@keyframes annPulse {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px #10B981; }
+}
+
+.status-pill-ann.expired {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
+  color: #DC2626;
+}
+
+.status-pill-ann.disabled {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1.5px solid rgba(148, 163, 184, 0.3);
+  color: #64748B;
+}
+
+/* Action Cell & Buttons (ALWAYS VISIBLE IN FULL VIEW) */
+.ann-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.icon-btn-ann {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.06);
+  color: #7C3AED;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.icon-btn-ann.toggle.active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10B981;
+}
+
+.icon-btn-ann.toggle.active:hover {
+  background: #10B981;
+  color: #FFFFFF;
+  border-color: #10B981;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.icon-btn-ann.delete {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #F43F5E;
+}
+
+.icon-btn-ann.delete:hover {
+  background: #F43F5E;
+  color: #FFFFFF;
+  border-color: #F43F5E;
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4);
+}

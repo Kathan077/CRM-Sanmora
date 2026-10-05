@@ -1,0 +1,268 @@
+/* ==========================================================================
+   SANMORA CRM - AI PHONE DETECTION & SECURITY GUARD SYSTEM
+   ========================================================================== */
+
+/* ── Floating Guard Status Bar ── */
+.pd-guard-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.9));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border, rgba(124, 58, 237, 0.18));
+  border-radius: 16px;
+  padding: 10px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+[data-theme='dark'] .pd-guard-bar,
+.dark .pd-guard-bar {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(167, 139, 250, 0.22);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+}
+
+.pd-guard-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pd-guard-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  transition: all 0.3s ease;
+}
+
+.pd-badge-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+[data-theme='dark'] .pd-badge-active,
+.dark .pd-badge-active {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.pd-badge-loading {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7C3AED;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+[data-theme='dark'] .pd-badge-loading,
+.dark .pd-badge-loading {
+  background: rgba(167, 139, 250, 0.15);
+  color: #C4B5FD;
+  border-color: rgba(167, 139, 250, 0.35);
+}
+
+.pd-badge-alert {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  animation: pdPulseAlert 1.2s infinite;
+}
+
+.pd-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: pdPulseDot 1.5s infinite;
+}
+
+@keyframes pdPulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+@keyframes pdPulseAlert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+.pd-guard-info {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748B);
+}
+
+[data-theme='dark'] .pd-guard-info,
+.dark .pd-guard-info {
+  color: #CBD5E1;
+}
+
+.pd-guard-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pd-toggle-btn {
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  border: 1px solid var(--card-border, rgba(124, 58, 237, 0.2));
+  background: var(--card-bg-solid, #FFFFFF);
+  color: var(--text-primary, #0F172A);
+  transition: all 0.25s ease;
+}
+
+.pd-toggle-btn:hover {
+  border-color: #7C3AED;
+  color: #7C3AED;
+}
+
+[data-theme='dark'] .pd-toggle-btn,
+.dark .pd-toggle-btn {
+  background: #1E293B;
+  color: #F8FAFC;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Hidden Camera Video Stream Canvas ── */
+.pd-hidden-video {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  width: 320px;
+  height: 240px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── FULLSCREEN SECURITY ALERT LOCKDOWN OVERLAY ── */
+.pd-overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: pdFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pdFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to { opacity: 1; backdrop-filter: blur(30px) saturate(180%); }
+}
+
+.pd-alert-card {
+  width: 100%;
+  max-width: 540px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  border-radius: 28px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 25px 70px -15px rgba(239, 68, 68, 0.4), 0 0 0 1px rgba(239, 68, 68, 0.2);
+  position: relative;
+  overflow: hidden;
+  animation: pdPopCard 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pdPopCard {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.pd-alert-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #EF4444, #F59E0B, #EF4444);
+  background-size: 200% 100%;
+  animation: pdShieldBar 2s linear infinite;
+}
+
+@keyframes pdShieldBar {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+
+.pd-alert-icon-ring {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.1) 100%);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #EF4444;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+  animation: pdPulseRing 1.5s infinite;
+}
+
+@keyframes pdPulseRing {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(239, 68, 68, 0.35); }
+  50% { transform: scale(1.06); box-shadow: 0 0 45px rgba(239, 68, 68, 0.6); }
+}
+
+.pd-alert-title {
+  font-size: 1.6rem;
+  font-weight: 850;
+  color: #FFFFFF;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.pd-alert-desc {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #94A3B8;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.pd-alert-desc strong {
+  color: #F8FAFC;
+}
+
+.pd-alert-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #FCA5A5;
+  font-size: 0.85rem;
+  font-weight: 750;
+  margin-bottom: 24px;
+}
+
+.pd-alert-footer {
+  font-size: 0.8rem;
+  color: #64748B;
+  font-weight: 600;
+}
