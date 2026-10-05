@@ -1,4 +1,10 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const getApiBaseUrl = () => {
+  let url = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').trim();
+  url = url.replace(/\/+$/, '');
+  return url.endsWith('/api') ? url : `${url}/api`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Base fetch wrapper with Bearer token injection

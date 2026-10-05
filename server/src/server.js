@@ -18,24 +18,46 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health Check Endpoint
-app.get('/api/health', (req, res) => {
+const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'online',
     system: 'CRM Sanmora Backend Engine',
     version: '1.0.0',
     timestamp: new Date()
   });
-});
+};
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
-// Register Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/roles', require('./routes/role.routes'));
-app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/announcements', require('./routes/announcement.routes'));
-app.use('/api/customers', require('./routes/customer.routes'));
-app.use('/api/followups', require('./routes/followup.routes'));
-app.use('/api/tasks', require('./routes/task.routes'));
-app.use('/api/ai', require('./routes/ai.routes'));
+// Register Routes (Supports both with /api and without /api prefixes)
+const authRoutes = require('./routes/auth.routes');
+const roleRoutes = require('./routes/role.routes');
+const userRoutes = require('./routes/user.routes');
+const announcementRoutes = require('./routes/announcement.routes');
+const customerRoutes = require('./routes/customer.routes');
+const followupRoutes = require('./routes/followup.routes');
+const taskRoutes = require('./routes/task.routes');
+const aiRoutes = require('./routes/ai.routes');
+
+// Routes mounted with /api
+app.use('/api/auth', authRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/followups', followupRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/ai', aiRoutes);
+
+// Fallback direct routes (in case client config omitted /api in NEXT_PUBLIC_API_URL)
+app.use('/auth', authRoutes);
+app.use('/roles', roleRoutes);
+app.use('/users', userRoutes);
+app.use('/announcements', announcementRoutes);
+app.use('/customers', customerRoutes);
+app.use('/followups', followupRoutes);
+app.use('/tasks', taskRoutes);
+app.use('/ai', aiRoutes);
 
 // Fallback & Error Middlewares
 app.use(notFound);
