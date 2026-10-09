@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '../services/auth.service';
 import { stopLoginAudio } from '../utils/loginAudio';
-import { isAdminUser } from '../utils/crmStore';
+import { isAdminUser, clearCrmStoreCache } from '../utils/crmStore';
 
 const AuthContext = createContext();
 
@@ -23,27 +23,16 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
-      const token = localStorage.getItem('crm_token');
-      const sessionActive = sessionStorage.getItem('crm_session_active');
+      // Tab-isolated session token takes precedence over global localStorage token
+      let token = sessionStorage.getItem('crm_token') || localStorage.getItem('crm_token');
+      if (token && !sessionStorage.getItem('crm_token')) {
+        // Inherit global session into this tab's isolated storage
+        sessionStorage.setItem('crm_token', token);
+      }
       const lastActivityStr = localStorage.getItem('crm_last_activity');
       const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 Hour
 
-      // 1. Check Software Close Logout:
-      // If token exists in localStorage, but sessionStorage has NO crm_session_active marker,
-      // it means the browser / software window was closed!
-      if (token && !sessionActive) {
-        console.warn('[Auth Init] Software / browser window was closed. Logging out...');
-        sessionStorage.setItem('crm_idle_logout_notice', 'app_closed');
-        await authService.logout('app_closed');
-        if (isMounted) {
-          setUser(null);
-          setLoading(false);
-          if (pathname !== '/login') router.push('/login');
-        }
-        return;
-      }
-
-      // 2. Check 1-Hour Inactivity Logout:
+      // Check 1-Hour Inactivity Logout:
       if (token && lastActivityStr) {
         const lastAct = parseInt(lastActivityStr, 10);
         if (!isNaN(lastAct) && (Date.now() - lastAct >= IDLE_TIMEOUT_MS)) {
@@ -73,6 +62,7 @@ export function AuthProvider({ children }) {
           if (res.success && res.data) {
             setUser(res.data);
             sessionStorage.setItem('crm_session_active', 'true');
+            sessionStorage.setItem('crm_user', JSON.stringify(res.data));
             if (!localStorage.getItem('crm_last_activity')) {
               localStorage.setItem('crm_last_activity', Date.now().toString());
             }
@@ -110,6 +100,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const res = await authService.login(email, password);
     if (res.success && res.data) {
+      clearCrmStoreCache();
       setUser(res.data.user);
       router.push('/dashboard');
     }
@@ -118,14 +109,13 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async (logoutType = 'manual') => {
     stopLoginAudio();
+    clearCrmStoreCache();
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('crm_play_login_song');
       sessionStorage.removeItem('crm_login_audio_pending');
       sessionStorage.removeItem('crm_login_audio_start_time');
       if (logoutType === 'idle_timeout') {
         sessionStorage.setItem('crm_idle_logout_notice', '1_hour_inactivity');
-      } else if (logoutType === 'app_closed') {
-        sessionStorage.setItem('crm_idle_logout_notice', 'app_closed');
       }
     }
     await authService.logout(logoutType);
@@ -182,7 +172,7 @@ export function AuthProvider({ children }) {
 
     // Cross-tab synchronization
     const handleStorageChange = (e) => {
-      if (e.key === 'crm_token' && !e.newValue) {
+      if (e.key === 'crm_token' && !e.newValue && !sessionStorage.getItem('crm_token')) {
         setUser(null);
         if (pathname !== '/login') router.push('/login');
       }

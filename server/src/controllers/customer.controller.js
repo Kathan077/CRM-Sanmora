@@ -36,11 +36,15 @@ const isUserAdmin = (user) => {
   return false;
 };
 
-// In-memory cache for Team Hierarchy Traversal (30s TTL)
-let customerTeamHierarchyCache = { data: null, lastUpdated: 0 };
-const CACHE_TTL_MS = 30000;
+// In-memory cache for Team Hierarchy Adjacency Map (60s TTL)
+let customerHierarchyCache = { adjacency: null, usersMap: null, lastUpdated: 0 };
+const CACHE_TTL_MS = 60000;
 
-// Helper to retrieve subordinate user IDs & names (cached recursive hierarchy traversal)
+exports.invalidateCustomerHierarchyCache = () => {
+  customerHierarchyCache = { adjacency: null, usersMap: null, lastUpdated: 0 };
+};
+
+// Helper to retrieve subordinate user IDs & names (O(team_size) graph traversal)
 const getTeamIdentifiers = async (user) => {
   const uIdStr = String(user._id || user.id || '').trim();
   const uNameStr = String(user.name || '').trim();
@@ -50,28 +54,41 @@ const getTeamIdentifiers = async (user) => {
 
   try {
     const now = Date.now();
-    if (!customerTeamHierarchyCache.data || (now - customerTeamHierarchyCache.lastUpdated) > CACHE_TTL_MS) {
-      customerTeamHierarchyCache.data = await User.find({}, 'name reportingTo').lean();
-      customerTeamHierarchyCache.lastUpdated = now;
+    if (!customerHierarchyCache.adjacency || (now - customerHierarchyCache.lastUpdated) > CACHE_TTL_MS) {
+      const allUsers = await User.find({}, '_id name reportingTo').lean();
+      const adjacency = new Map();
+      const usersMap = new Map();
+
+      for (const u of allUsers) {
+        const uId = String(u._id);
+        usersMap.set(uId, u.name || '');
+        const repVal = u.reportingTo;
+        const repId = String(repVal && typeof repVal === 'object' ? (repVal._id || repVal.id) : (repVal || '')).trim();
+        if (repId) {
+          if (!adjacency.has(repId)) adjacency.set(repId, []);
+          adjacency.get(repId).push(uId);
+        }
+      }
+
+      customerHierarchyCache = { adjacency, usersMap, lastUpdated: now };
     }
-    const allUsers = customerTeamHierarchyCache.data || [];
+
+    const { adjacency, usersMap } = customerHierarchyCache;
     const visited = new Set([uIdStr]);
     const queue = [uIdStr];
 
     while (queue.length > 0) {
       const currentMgrId = queue.shift();
-      allUsers.forEach(u => {
-        const uId = String(u._id || u.id);
-        const repVal = u.reportingTo;
-        const repId = String(repVal && typeof repVal === 'object' ? (repVal._id || repVal.id) : (repVal || '')).trim();
-
-        if (repId && repId === currentMgrId && !visited.has(uId)) {
-          visited.add(uId);
-          teamIds.push(uId);
-          if (u.name) teamNames.push(u.name);
-          queue.push(uId);
+      const directReports = adjacency.get(currentMgrId) || [];
+      for (const subId of directReports) {
+        if (!visited.has(subId)) {
+          visited.add(subId);
+          teamIds.push(subId);
+          const subName = usersMap.get(subId);
+          if (subName) teamNames.push(subName);
+          queue.push(subId);
         }
-      });
+      }
     }
   } catch (e) {}
 
@@ -92,7 +109,8 @@ const escapeRegex = (str) => String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\
 // @access  Private
 exports.getAllCustomers = async (req, res) => {
   try {
-    let customers;
+    let filterQuery = {};
+
     if (isUserAdmin(req.user)) {
       const { assignedTo, employeeId, executive } = req.query;
       const filterVal = (assignedTo || employeeId || executive || '').trim();
@@ -100,7 +118,7 @@ exports.getAllCustomers = async (req, res) => {
       if (filterVal && filterVal !== 'all') {
         const regexVal = new RegExp(`^${escapeRegex(filterVal)}$`, 'i');
         const objectIdFilter = mongoose.Types.ObjectId.isValid(filterVal) ? [new mongoose.Types.ObjectId(filterVal)] : [];
-        customers = await Customer.find({
+        filterQuery = {
           $or: [
             { createdById: { $in: [filterVal, ...objectIdFilter] } },
             { assignedToId: { $in: [filterVal, ...objectIdFilter] } },
@@ -109,34 +127,59 @@ exports.getAllCustomers = async (req, res) => {
             { assignedTo: regexVal },
             { originalAssignerName: regexVal }
           ]
-        }).sort({ createdAt: -1 }).lean();
-      } else {
-        customers = await Customer.find().sort({ createdAt: -1 }).lean();
+        };
       }
     } else {
       // Manager & Hierarchy Scoped: Reporting Manager sees own + subordinates' records; Executive sees only own
       const { teamIds, teamNames, teamObjectIds } = await getTeamIdentifiers(req.user);
       const allTargetIds = [...teamIds, ...teamObjectIds];
-      const nameRegexes = teamNames.map(n => new RegExp(`^${escapeRegex(n)}$`, 'i'));
 
-      customers = await Customer.find({
+      filterQuery = {
         $or: [
           { createdById: { $in: allTargetIds } },
           { assignedToId: { $in: allTargetIds } },
           { originalAssignerId: { $in: allTargetIds } },
-          { createdBy: { $in: nameRegexes } },
-          { assignedTo: { $in: nameRegexes } },
-          { originalAssignerName: { $in: nameRegexes } }
+          { createdBy: { $in: teamNames } },
+          { assignedTo: { $in: teamNames } },
+          { originalAssignerName: { $in: teamNames } }
         ]
-      }).sort({ createdAt: -1 }).lean();
+      };
     }
 
-    // Format response to match legacy client ID expectations
+    const page = parseInt(req.query.page, 10);
+    const limit = parseInt(req.query.limit, 10);
+    const hasPagination = !isNaN(page) && !isNaN(limit) && page > 0 && limit > 0;
+
+    let queryExec = Customer.find(filterQuery).sort({ createdAt: -1 });
+    let total = 0;
+
+    if (hasPagination) {
+      const skip = (page - 1) * limit;
+      const [pagedData, countTotal] = await Promise.all([
+        queryExec.skip(skip).limit(limit).lean(),
+        Customer.countDocuments(filterQuery)
+      ]);
+      const formatted = pagedData.map(c => ({ ...c, id: String(c._id) }));
+      return res.status(200).json({
+        success: true,
+        count: formatted.length,
+        total: countTotal,
+        page,
+        pages: Math.ceil(countTotal / limit),
+        data: formatted
+      });
+    }
+
+    // Default fast unpaginated fetch (lean query optimized by index)
+    const customers = await queryExec.lean();
     const formatted = customers.map(c => ({ ...c, id: String(c._id) }));
 
     res.status(200).json({
       success: true,
       count: formatted.length,
+      total: formatted.length,
+      page: 1,
+      pages: 1,
       data: formatted
     });
   } catch (error) {
@@ -153,15 +196,38 @@ exports.getAllCustomers = async (req, res) => {
 // @access  Private
 exports.getAllCustomersUnfiltered = async (req, res) => {
   try {
-    const customers = await Customer.find().sort({ createdAt: -1 });
-    const formatted = customers.map(c => {
-      const obj = c.toObject();
-      return { ...obj, id: String(obj._id) };
-    });
+    const page = parseInt(req.query.page, 10);
+    const limit = parseInt(req.query.limit, 10);
+    const hasPagination = !isNaN(page) && !isNaN(limit) && page > 0 && limit > 0;
+
+    let queryExec = Customer.find().sort({ createdAt: -1 });
+
+    if (hasPagination) {
+      const skip = (page - 1) * limit;
+      const [pagedData, countTotal] = await Promise.all([
+        queryExec.skip(skip).limit(limit).lean(),
+        Customer.countDocuments()
+      ]);
+      const formatted = pagedData.map(c => ({ ...c, id: String(c._id) }));
+      return res.status(200).json({
+        success: true,
+        count: formatted.length,
+        total: countTotal,
+        page,
+        pages: Math.ceil(countTotal / limit),
+        data: formatted
+      });
+    }
+
+    const customers = await queryExec.lean();
+    const formatted = customers.map(c => ({ ...c, id: String(c._id) }));
 
     res.status(200).json({
       success: true,
       count: formatted.length,
+      total: formatted.length,
+      page: 1,
+      pages: 1,
       data: formatted
     });
   } catch (error) {
@@ -321,32 +387,40 @@ exports.transferCustomer = async (req, res) => {
     if (customer.phone) filterConditions.push({ phone: customer.phone });
     if (customer.customerName) filterConditions.push({ customerName: customer.customerName });
 
-    const followups = await Followup.find({ $or: filterConditions });
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    for (const fup of followups) {
-      fup.assignedTo = targetEmployeeName;
-      fup.assignedToId = String(targetEmployeeId);
-      fup.createdBy = targetEmployeeName;
-      fup.createdById = String(targetEmployeeId);
-      fup.originalAssignerName = targetEmployeeName;
-      fup.originalAssignerId = String(targetEmployeeId);
-
-      if (!Array.isArray(fup.history)) fup.history = [];
-      fup.history.push({
-        followupDate: todayStr,
-        followupType: 'System Transfer',
-        notes: transferNote || `Lead transferred from ${senderName} to ${targetEmployeeName}`,
-        nextFollowupDate: fup.nextFollowupDate || todayStr,
-        preferredTime: fup.preferredTime || '',
-        assignedTo: targetEmployeeName,
-        assignedToId: String(targetEmployeeId),
-        createdBy: senderName,
-        createdById: senderId,
-        createdAt: new Date()
+    const followups = await Followup.find({ $or: filterConditions }).lean();
+    if (followups.length > 0) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const bulkOps = followups.map(fup => {
+        const historyItem = {
+          followupDate: todayStr,
+          followupType: 'System Transfer',
+          notes: transferNote || `Lead transferred from ${senderName} to ${targetEmployeeName}`,
+          nextFollowupDate: fup.nextFollowupDate || todayStr,
+          preferredTime: fup.preferredTime || '',
+          assignedTo: targetEmployeeName,
+          assignedToId: String(targetEmployeeId),
+          createdBy: senderName,
+          createdById: senderId,
+          createdAt: new Date()
+        };
+        return {
+          updateOne: {
+            filter: { _id: fup._id },
+            update: {
+              $set: {
+                assignedTo: targetEmployeeName,
+                assignedToId: String(targetEmployeeId),
+                createdBy: targetEmployeeName,
+                createdById: String(targetEmployeeId),
+                originalAssignerName: targetEmployeeName,
+                originalAssignerId: String(targetEmployeeId)
+              },
+              $push: { history: historyItem }
+            }
+          }
+        };
       });
-
-      await fup.save();
+      await Followup.bulkWrite(bulkOps);
     }
 
     const obj = customer.toObject();
@@ -436,30 +510,39 @@ exports.bulkTransferCustomers = async (req, res) => {
       ]
     };
 
-    const followups = await Followup.find(followupFilter);
-    for (const fup of followups) {
-      fup.assignedTo = targetEmployeeName;
-      fup.assignedToId = String(targetEmployeeId);
-      fup.createdBy = targetEmployeeName;
-      fup.createdById = String(targetEmployeeId);
-      fup.originalAssignerName = targetEmployeeName;
-      fup.originalAssignerId = String(targetEmployeeId);
-
-      if (!Array.isArray(fup.history)) fup.history = [];
-      fup.history.push({
-        followupDate: todayStr,
-        followupType: 'Bulk Transfer',
-        notes: transferNote || `Bulk lead transferred from ${senderName} to ${targetEmployeeName}`,
-        nextFollowupDate: fup.nextFollowupDate || todayStr,
-        preferredTime: fup.preferredTime || '',
-        assignedTo: targetEmployeeName,
-        assignedToId: String(targetEmployeeId),
-        createdBy: senderName,
-        createdById: senderId,
-        createdAt: new Date()
+    const followups = await Followup.find(followupFilter).lean();
+    if (followups.length > 0) {
+      const bulkOps = followups.map(fup => {
+        const historyItem = {
+          followupDate: todayStr,
+          followupType: 'Bulk Transfer',
+          notes: transferNote || `Bulk lead transferred from ${senderName} to ${targetEmployeeName}`,
+          nextFollowupDate: fup.nextFollowupDate || todayStr,
+          preferredTime: fup.preferredTime || '',
+          assignedTo: targetEmployeeName,
+          assignedToId: String(targetEmployeeId),
+          createdBy: senderName,
+          createdById: senderId,
+          createdAt: new Date()
+        };
+        return {
+          updateOne: {
+            filter: { _id: fup._id },
+            update: {
+              $set: {
+                assignedTo: targetEmployeeName,
+                assignedToId: String(targetEmployeeId),
+                createdBy: targetEmployeeName,
+                createdById: String(targetEmployeeId),
+                originalAssignerName: targetEmployeeName,
+                originalAssignerId: String(targetEmployeeId)
+              },
+              $push: { history: historyItem }
+            }
+          }
+        };
       });
-
-      await fup.save();
+      await Followup.bulkWrite(bulkOps);
     }
 
     res.status(200).json({

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { announcementService } from '../../services/announcement.service';
 import { getActiveAnnouncementsStore } from '../../utils/crmStore';
 import {
@@ -13,6 +14,17 @@ export default function GlobalAnnouncementBanner({ onToggleDismiss }) {
   const [announcements, setAnnouncements] = useState([]);
   const [dismissed, setDismissed] = useState(false);
   const [nowTime, setNowTime] = useState(Date.now());
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const isDismissedStored = localStorage.getItem('crm_announcement_dismissed_v1');
+      if (isDismissedStored === 'true') {
+        setDismissed(true);
+      }
+    }
+  }, []);
 
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
@@ -21,18 +33,34 @@ export default function GlobalAnnouncementBanner({ onToggleDismiss }) {
 
   // Function to load active announcements
   const fetchActiveAnnouncements = useCallback(async () => {
+    let list = [];
     try {
       const res = await announcementService.getActiveAnnouncements();
-      const list = (res && res.data && Array.isArray(res.data)) ? res.data : [];
-      if (list.length > 0) {
-        setAnnouncements(list);
-        return;
-      }
+      list = (res && res.data && Array.isArray(res.data)) ? res.data : [];
     } catch (err) {
       // Fallback to offline store
     }
-    const localActive = getActiveAnnouncementsStore();
-    setAnnouncements(localActive);
+    if (!list || list.length === 0) {
+      list = getActiveAnnouncementsStore() || [];
+    }
+    setAnnouncements(list);
+
+    // Sync persisted dismissal status with active announcement
+    if (typeof window !== 'undefined' && list.length > 0) {
+      const primary = list[0];
+      const pId = String(primary.id || primary._id || '');
+      const dismissedId = localStorage.getItem('crm_announcement_dismissed_id');
+      const isGlobalDismissed = localStorage.getItem('crm_announcement_dismissed_v1') === 'true';
+
+      if (dismissedId === pId || (isGlobalDismissed && !dismissedId)) {
+        setDismissed(true);
+      } else if (dismissedId && dismissedId !== pId) {
+        // A brand new announcement was created! Show it to the user
+        setDismissed(false);
+        localStorage.removeItem('crm_announcement_dismissed_id');
+        localStorage.setItem('crm_announcement_dismissed_v1', 'false');
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -329,11 +357,22 @@ export default function GlobalAnnouncementBanner({ onToggleDismiss }) {
 
   const handleDismiss = () => {
     setDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crm_announcement_dismissed_v1', 'true');
+      const active = announcements && announcements[0];
+      if (active) {
+        localStorage.setItem('crm_announcement_dismissed_id', String(active.id || active._id || ''));
+      }
+    }
     if (onToggleDismiss) onToggleDismiss(true);
   };
 
   const handleExpand = () => {
     setDismissed(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crm_announcement_dismissed_v1', 'false');
+      localStorage.removeItem('crm_announcement_dismissed_id');
+    }
     if (onToggleDismiss) onToggleDismiss(false);
   };
 
@@ -362,11 +401,29 @@ export default function GlobalAnnouncementBanner({ onToggleDismiss }) {
   const BadgeIcon = badgeInfo.icon;
 
   if (dismissed) {
-    return (
-      <div className="announcement-header-trigger" onClick={handleExpand} title="Click to view Active Celebration Announcement">
+    const triggerElement = (
+      <button
+        type="button"
+        className="announcement-header-trigger"
+        onClick={handleExpand}
+        title="Click to view Active Celebration Announcement"
+      >
         <PartyPopper size={14} className="announcement-sparkle-icn" />
         <span>Celebration Announcement</span>
         <Eye size={13} />
+      </button>
+    );
+
+    if (mounted && typeof document !== 'undefined') {
+      const slot = document.getElementById('header-announcement-slot');
+      if (slot) {
+        return createPortal(triggerElement, slot);
+      }
+    }
+
+    return (
+      <div className="announcement-header-trigger-fallback">
+        {triggerElement}
       </div>
     );
   }

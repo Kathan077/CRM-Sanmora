@@ -105,16 +105,20 @@ export default function TasksPage() {
 
   // Initialize and Sync with MongoDB Backend
   useEffect(() => {
-    loadTasksFromStore();
+    loadTasksFromStore(true);
     loadEmployeesList();
 
-    // Trigger immediate sync with backend database
+    // Trigger background sync with backend database
     syncCrmStoreWithBackendApi().then(() => {
-      loadTasksFromStore();
+      loadTasksFromStore(false);
     });
 
+    let debounceTimer = null;
     const handleStoreUpdate = () => {
-      loadTasksFromStore();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        loadTasksFromStore(false);
+      }, 50);
     };
 
     if (typeof window !== 'undefined') {
@@ -122,27 +126,32 @@ export default function TasksPage() {
     }
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('crm_store_updated', handleStoreUpdate);
       }
     };
-  }, []);
+  }, [currentUser]);
 
-  const loadTasksFromStore = () => {
-    setLoading(true);
+  const loadTasksFromStore = (showLoading = false) => {
+    if (showLoading) setLoading(true);
     const stored = getStoredTasks();
     setTasks(stored);
-    setLoading(false);
+    if (showLoading) setLoading(false);
   };
 
   const loadEmployeesList = async () => {
     try {
-      const res = await userService.getAllUsers();
-      if (res.success) {
-        setEmployees(res.data || []);
+      const res = await userService.getStaffDirectory();
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setEmployees(res.data);
+      } else if (currentUser) {
+        setEmployees([currentUser]);
       }
     } catch (e) {
-      console.error('Failed to load employees:', e);
+      if (currentUser) {
+        setEmployees([currentUser]);
+      }
     }
   };
 

@@ -35,11 +35,15 @@ const isUserAdmin = (user) => {
   return false;
 };
 
-// In-memory cache for Team Hierarchy Traversal (30s TTL)
-let teamHierarchyCache = { data: null, lastUpdated: 0 };
-const CACHE_TTL_MS = 30000;
+// In-memory cache for Team Hierarchy Adjacency Map (60s TTL)
+let followupHierarchyCache = { adjacency: null, usersMap: null, lastUpdated: 0 };
+const CACHE_TTL_MS = 60000;
 
-// Helper to retrieve subordinate user IDs & names (cached recursive hierarchy traversal)
+exports.invalidateFollowupHierarchyCache = () => {
+  followupHierarchyCache = { adjacency: null, usersMap: null, lastUpdated: 0 };
+};
+
+// Helper to retrieve subordinate user IDs & names (O(team_size) graph traversal)
 const getTeamIdentifiers = async (user) => {
   const uIdStr = String(user._id || user.id || '').trim();
   const uNameStr = String(user.name || '').trim();
@@ -49,28 +53,41 @@ const getTeamIdentifiers = async (user) => {
 
   try {
     const now = Date.now();
-    if (!teamHierarchyCache.data || (now - teamHierarchyCache.lastUpdated) > CACHE_TTL_MS) {
-      teamHierarchyCache.data = await User.find({}, 'name reportingTo').lean();
-      teamHierarchyCache.lastUpdated = now;
+    if (!followupHierarchyCache.adjacency || (now - followupHierarchyCache.lastUpdated) > CACHE_TTL_MS) {
+      const allUsers = await User.find({}, '_id name reportingTo').lean();
+      const adjacency = new Map();
+      const usersMap = new Map();
+
+      for (const u of allUsers) {
+        const uId = String(u._id);
+        usersMap.set(uId, u.name || '');
+        const repVal = u.reportingTo;
+        const repId = String(repVal && typeof repVal === 'object' ? (repVal._id || repVal.id) : (repVal || '')).trim();
+        if (repId) {
+          if (!adjacency.has(repId)) adjacency.set(repId, []);
+          adjacency.get(repId).push(uId);
+        }
+      }
+
+      followupHierarchyCache = { adjacency, usersMap, lastUpdated: now };
     }
-    const allUsers = teamHierarchyCache.data || [];
+
+    const { adjacency, usersMap } = followupHierarchyCache;
     const visited = new Set([uIdStr]);
     const queue = [uIdStr];
 
     while (queue.length > 0) {
       const currentMgrId = queue.shift();
-      allUsers.forEach(u => {
-        const uId = String(u._id || u.id);
-        const repVal = u.reportingTo;
-        const repId = String(repVal && typeof repVal === 'object' ? (repVal._id || repVal.id) : (repVal || '')).trim();
-
-        if (repId && repId === currentMgrId && !visited.has(uId)) {
-          visited.add(uId);
-          teamIds.push(uId);
-          if (u.name) teamNames.push(u.name);
-          queue.push(uId);
+      const directReports = adjacency.get(currentMgrId) || [];
+      for (const subId of directReports) {
+        if (!visited.has(subId)) {
+          visited.add(subId);
+          teamIds.push(subId);
+          const subName = usersMap.get(subId);
+          if (subName) teamNames.push(subName);
+          queue.push(subId);
         }
-      });
+      }
     }
   } catch (e) {}
 
@@ -91,7 +108,8 @@ const escapeRegex = (str) => String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\
 // @access  Private
 exports.getAllFollowups = async (req, res) => {
   try {
-    let followups;
+    let filterQuery = {};
+
     if (isUserAdmin(req.user)) {
       const { assignedTo, employeeId, executive } = req.query;
       const filterVal = (assignedTo || employeeId || executive || '').trim();
@@ -99,7 +117,7 @@ exports.getAllFollowups = async (req, res) => {
       if (filterVal && filterVal !== 'all') {
         const regexVal = new RegExp(`^${escapeRegex(filterVal)}$`, 'i');
         const objectIdFilter = mongoose.Types.ObjectId.isValid(filterVal) ? [new mongoose.Types.ObjectId(filterVal)] : [];
-        followups = await Followup.find({
+        filterQuery = {
           $or: [
             { createdById: { $in: [filterVal, ...objectIdFilter] } },
             { assignedToId: { $in: [filterVal, ...objectIdFilter] } },
@@ -108,33 +126,57 @@ exports.getAllFollowups = async (req, res) => {
             { assignedTo: regexVal },
             { originalAssignerName: regexVal }
           ]
-        }).sort({ updatedAt: -1 }).lean();
-      } else {
-        followups = await Followup.find().sort({ updatedAt: -1 }).lean();
+        };
       }
     } else {
       // Manager & Hierarchy Scoped: Reporting Manager sees own + subordinates' records; Executive sees only own
       const { teamIds, teamNames, teamObjectIds } = await getTeamIdentifiers(req.user);
       const allTargetIds = [...teamIds, ...teamObjectIds];
-      const nameRegexes = teamNames.map(n => new RegExp(`^${escapeRegex(n)}$`, 'i'));
 
-      followups = await Followup.find({
+      filterQuery = {
         $or: [
           { createdById: { $in: allTargetIds } },
           { assignedToId: { $in: allTargetIds } },
           { originalAssignerId: { $in: allTargetIds } },
-          { createdBy: { $in: nameRegexes } },
-          { assignedTo: { $in: nameRegexes } },
-          { originalAssignerName: { $in: nameRegexes } }
+          { createdBy: { $in: teamNames } },
+          { assignedTo: { $in: teamNames } },
+          { originalAssignerName: { $in: teamNames } }
         ]
-      }).sort({ updatedAt: -1 }).lean();
+      };
     }
 
+    const page = parseInt(req.query.page, 10);
+    const limit = parseInt(req.query.limit, 10);
+    const hasPagination = !isNaN(page) && !isNaN(limit) && page > 0 && limit > 0;
+
+    let queryExec = Followup.find(filterQuery).sort({ updatedAt: -1 });
+
+    if (hasPagination) {
+      const skip = (page - 1) * limit;
+      const [pagedData, countTotal] = await Promise.all([
+        queryExec.skip(skip).limit(limit).lean(),
+        Followup.countDocuments(filterQuery)
+      ]);
+      const formatted = pagedData.map(f => ({ ...f, id: String(f._id) }));
+      return res.status(200).json({
+        success: true,
+        count: formatted.length,
+        total: countTotal,
+        page,
+        pages: Math.ceil(countTotal / limit),
+        data: formatted
+      });
+    }
+
+    const followups = await queryExec.lean();
     const formatted = followups.map(f => ({ ...f, id: String(f._id) }));
 
     res.status(200).json({
       success: true,
       count: formatted.length,
+      total: formatted.length,
+      page: 1,
+      pages: 1,
       data: formatted
     });
   } catch (error) {

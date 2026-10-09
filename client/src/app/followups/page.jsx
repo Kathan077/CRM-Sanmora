@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
@@ -542,10 +542,16 @@ export default function FollowupsPage() {
     status: 'Active'
   });
 
-  const loadFollowups = useCallback((empList = employees) => {
+  const employeesRef = useRef(employees);
+  useEffect(() => {
+    employeesRef.current = employees;
+  }, [employees]);
+
+  const loadFollowups = useCallback((empList = null) => {
     const rawData = getStoredFollowups();
+    const effectiveEmployees = empList || employeesRef.current || [];
     // Filter followups according to User Role & Manager Hierarchy
-    const scopedData = filterByRole(rawData, user, empList);
+    const scopedData = filterByRole(rawData, user, effectiveEmployees);
     // Ultra-fast Pre-indexing for 100,000+ items (Single Pass)
     const indexed = scopedData.map(f => {
       const rawStatus = String(f.status || '').toLowerCase();
@@ -580,13 +586,22 @@ export default function FollowupsPage() {
     });
 
     setFollowups(indexed);
-  }, [user, employees]);
+  }, [user]);
 
   useEffect(() => {
-    loadFollowups(employees);
+    loadFollowups();
 
+    // Background sync with MongoDB
+    syncCrmStoreWithBackendApi().then(() => {
+      loadFollowups();
+    });
+
+    let debounceTimer = null;
     const handleStoreUpdate = () => {
-      loadFollowups(employees);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        loadFollowups();
+      }, 50);
     };
 
     if (typeof window !== 'undefined') {
@@ -595,14 +610,20 @@ export default function FollowupsPage() {
 
     async function loadEmployees() {
       const token = typeof window !== 'undefined'
-        ? (localStorage.getItem('crm_token') || localStorage.getItem('token') || sessionStorage.getItem('crm_token'))
+        ? (sessionStorage.getItem('crm_token') || sessionStorage.getItem('token') || localStorage.getItem('crm_token') || localStorage.getItem('token'))
         : null;
       if (!token) return;
 
       try {
-        const res = await userService.getAllUsers();
+        const res = await userService.getStaffDirectory();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setEmployees(res.data);
+          setEmployees(prev => {
+            if (prev.length === res.data.length && prev[0]?._id === res.data[0]?._id) {
+              return prev;
+            }
+            return res.data;
+          });
+          employeesRef.current = res.data;
           loadFollowups(res.data);
         }
       } catch (e) {
@@ -612,6 +633,7 @@ export default function FollowupsPage() {
     loadEmployees();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('crm_store_updated', handleStoreUpdate);
       }
@@ -854,24 +876,24 @@ export default function FollowupsPage() {
       notes: '',
       status: 'Active'
     });
-    loadData(user);
+    loadFollowups();
   };
 
   const handleToggleStatus = (fup) => {
     const nextStatus = fup.status === 'Active' ? 'No FollowUp' : 'Active';
     updateFollowupStatus(fup.id, nextStatus, nextStatus === 'No FollowUp' ? 'Closed' : '—');
-    loadData(user);
+    loadFollowups();
   };
 
   const handleDelete = (id) => {
     deleteFollowup(id);
-    loadData(user);
+    loadFollowups();
   };
 
   const handleDeleteAllFollowups = () => {
     if (confirm('Are you sure you want to delete ALL follow-up data across dashboard, customer directory, and follow-up center? This action cannot be undone.')) {
       deleteAllFollowups();
-      loadData(user);
+      loadFollowups();
     }
   };
 
@@ -1378,7 +1400,7 @@ export default function FollowupsPage() {
                       </div>
 
                       <div style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={12} style={{ color: '#2563EB' }} /> <a href={`tel:${item.phone}`} style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>{item.phone}</a> | Exec: {item.assignedTo || 'smit'}
+                        <Phone size={12} style={{ color: '#2563EB' }} /> <a href={`tel:${item.phone}`} style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>{item.phone}</a> | Exec: {item.assignedTo || 'Unassigned'}
                       </div>
 
                       <div className="notes-bubble" style={{ maxWidth: '100%' }}>
@@ -1599,7 +1621,7 @@ export default function FollowupsPage() {
         isOpen={showAddLeadModal}
         onClose={() => setShowAddLeadModal(false)}
         onSubmit={handleAddLeadSubmit}
-        employees={employees.length > 0 ? employees : [{ _id: '1', name: 'smit', role: { name: 'Admin' } }]}
+        employees={employees.length > 0 ? employees : (user ? [user] : [])}
         currentUser={user}
       />
 

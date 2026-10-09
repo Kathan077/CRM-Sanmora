@@ -67,18 +67,20 @@ const PORT = process.env.PORT || 5000;
 
 let serverInstance = null;
 
-const startServer = async () => {
+const startServer = async (port = PORT) => {
   await connectDB();
   await seedInitialData();
 
-  serverInstance = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`=======================================================`);
-    console.log(`🚀 CRM Sanmora Backend running on http://localhost:${PORT}`);
-    console.log(`🔑 Super Admin Email: admin@sanmoracrm.com | Pass: Admin@123456`);
-    console.log(`=======================================================`);
+  return new Promise((resolve) => {
+    serverInstance = app.listen(port, () => {
+      const activePort = serverInstance.address()?.port || port;
+      console.log(`=======================================================`);
+      console.log(`🚀 CRM Sanmora Backend running on http://localhost:${activePort}`);
+      console.log(`🔑 Super Admin Email: admin@sanmoracrm.com | Pass: Admin@123456`);
+      console.log(`=======================================================`);
+      resolve(serverInstance);
+    });
   });
-
-  return serverInstance;
 };
 
 // Auto start if executed directly

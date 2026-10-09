@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
-import PhoneDetectionGuard from '../../components/common/PhoneDetectionGuard';
 import { useAuth } from '../../context/AuthContext';
 import { customerService } from '../../services/customer.service';
+import { apiRequest } from '../../services/api';
 import './all-customers.css';
 import {
   ShieldAlert,
@@ -35,7 +35,9 @@ import {
   Snowflake,
   Target,
   Sparkles,
-  Hash
+  Hash,
+  Key,
+  Copy
 } from 'lucide-react';
 
 // Mask Phone Number Helper: 5948895484 -> 594•••••84
@@ -79,31 +81,88 @@ export default function AllCustomersPage() {
   const [executiveFilter, setExecutiveFilter] = useState('all');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
+  const isSuperAdmin = user?.role?.name === 'Super Admin' || user?.role === 'Super Admin' || user?.email === 'admin@sanmoracrm.com';
+
   // DATA MASKING STATE (Enterprise Data Leak Prevention)
   const [isDataMasked, setIsDataMasked] = useState(true);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [showUnlockPassText, setShowUnlockPassText] = useState(false);
+  const [unlockError, setUnlockError] = useState('');
+  const [unlockSubmitting, setUnlockSubmitting] = useState(false);
+  const [autoRelockSeconds, setAutoRelockSeconds] = useState(0);
+
+  // ADMIN RANDOM ACCESS PIN FOR "VIEW" ACTION
+  const [adminAccessPin, setAdminAccessPin] = useState('849201');
+  const [showAdminPinText, setShowAdminPinText] = useState(false);
+  const [showViewPinModal, setShowViewPinModal] = useState(false);
+  const [targetCustomerForView, setTargetCustomerForView] = useState(null);
+  const [enteredViewPin, setEnteredViewPin] = useState('');
+  const [viewPinError, setViewPinError] = useState('');
+
+  // Restore or initialize random PIN on startup
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPin = localStorage.getItem('crm_customer_view_pin');
+      if (savedPin && savedPin.length >= 4) {
+        setAdminAccessPin(savedPin);
+      } else {
+        const initialPin = String(Math.floor(100000 + Math.random() * 900000));
+        localStorage.setItem('crm_customer_view_pin', initialPin);
+        setAdminAccessPin(initialPin);
+      }
+    }
+  }, []);
+
+  const handleGenerateNewPin = () => {
+    const newPin = String(Math.floor(100000 + Math.random() * 900000));
+    setAdminAccessPin(newPin);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crm_customer_view_pin', newPin);
+    }
+    triggerSecurityAlert(`New Customer View Access PIN Generated: ${newPin}`);
+  };
+
+  const handleCopyPin = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(adminAccessPin);
+      triggerSecurityAlert(`Access PIN [${adminAccessPin}] copied to clipboard!`);
+    }
+  };
+
+  const handleInitiateViewCustomer = (cust) => {
+    if (isSuperAdmin) {
+      setSelectedCustomer(cust);
+      return;
+    }
+    setTargetCustomerForView(cust);
+    setEnteredViewPin('');
+    setViewPinError('');
+    setShowViewPinModal(true);
+  };
+
+  const handleVerifyViewPin = (e) => {
+    e.preventDefault();
+    if (!enteredViewPin || enteredViewPin.trim().length === 0) {
+      setViewPinError('Please enter the access PIN provided by Admin.');
+      return;
+    }
+
+    if (enteredViewPin.trim() === adminAccessPin.trim()) {
+      setShowViewPinModal(false);
+      setSelectedCustomer(targetCustomerForView);
+      setEnteredViewPin('');
+      setViewPinError('');
+      triggerSecurityAlert('Access Authorized: Customer record opened.');
+    } else {
+      setViewPinError('Invalid Access PIN. Please request the current authorization PIN from Admin.');
+    }
+  };
 
   // ULTRA SECURITY STATES
   const [isWindowBlurred, setIsWindowBlurred] = useState(false);
   const [securityToast, setSecurityToast] = useState(null);
   const [currentTime, setCurrentTime] = useState('');
-
-  // Live clock for security watermark
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }));
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Show security toast alert
   const triggerSecurityAlert = useCallback((msg) => {
@@ -112,6 +171,76 @@ export default function AllCustomersPage() {
       setSecurityToast(null);
     }, 4000);
   }, []);
+
+  // Auto-Relock Countdown Timer (60s Data Leak Prevention)
+  useEffect(() => {
+    if (isDataMasked || autoRelockSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setAutoRelockSeconds((prev) => {
+        if (prev <= 1) {
+          setIsDataMasked(true);
+          triggerSecurityAlert('Security Policy: Sensitive contact info automatically re-masked.');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isDataMasked, autoRelockSeconds, triggerSecurityAlert]);
+
+  const handleToggleMasking = () => {
+    if (!isSuperAdmin) {
+      triggerSecurityAlert('Access Denied: Only Super Admin can unlock sensitive customer data.');
+      return;
+    }
+
+    if (!isDataMasked) {
+      setIsDataMasked(true);
+      setAutoRelockSeconds(0);
+      triggerSecurityAlert('Security Enabled: Sensitive contact info masked.');
+      return;
+    }
+
+    setShowUnlockModal(true);
+    setUnlockPassword('');
+    setUnlockError('');
+    setShowUnlockPassText(false);
+  };
+
+  const handleVerifyUnlock = async (e) => {
+    e.preventDefault();
+    if (!unlockPassword) {
+      setUnlockError('Please enter your Super Admin password.');
+      return;
+    }
+
+    setUnlockSubmitting(true);
+    setUnlockError('');
+
+    try {
+      const res = await apiRequest('/auth/login', 'POST', {
+        email: user?.email || 'admin@sanmoracrm.com',
+        password: unlockPassword
+      });
+
+      if (res && res.success) {
+        setIsDataMasked(false);
+        setShowUnlockModal(false);
+        setUnlockPassword('');
+        setUnlockError('');
+        setAutoRelockSeconds(60);
+        triggerSecurityAlert('Super Admin Verified: Confidential contact details unlocked for 60 seconds.');
+      } else {
+        setUnlockError(res?.message || 'Incorrect Super Admin password. Access denied.');
+      }
+    } catch (err) {
+      setUnlockError(err.message || 'Verification failed. Incorrect Super Admin password.');
+    } finally {
+      setUnlockSubmitting(false);
+    }
+  };
 
   // FETCH ALL UNFILTERED CUSTOMERS
   const fetchAllCustomers = async () => {
@@ -146,6 +275,8 @@ export default function AllCustomersPage() {
 
     const handleBlur = () => {
       setIsWindowBlurred(true);
+      setIsDataMasked(true);
+      setAutoRelockSeconds(0);
     };
 
     const handleFocus = () => {
@@ -157,6 +288,8 @@ export default function AllCustomersPage() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         setIsWindowBlurred(true);
+        setIsDataMasked(true);
+        setAutoRelockSeconds(0);
       }
     };
 
@@ -350,9 +483,6 @@ export default function AllCustomersPage() {
 
       {/* 3. MAIN CONTENT WRAPPER */}
       <main className={`crm-main-content ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        {/* 🛡️ AI REAL-TIME MOBILE CAMERA DETECTION GUARD */}
-        <PhoneDetectionGuard pageName="All Customers Directory" />
-
         <div
           className={`all-customers-container ${isWindowBlurred ? 'blur-active' : ''}`}
           onContextMenu={handleContextMenu}
@@ -490,24 +620,39 @@ export default function AllCustomersPage() {
 
               <div className="ac-filters-row">
                 {/* DATA MASKING TOGGLE BUTTON */}
-                <button
-                  className={`ac-mask-toggle-btn ${isDataMasked ? 'masked' : 'unmasked'}`}
-                  onClick={() => {
-                    setIsDataMasked(!isDataMasked);
-                    triggerSecurityAlert(isDataMasked ? 'Warning: Sensitive contact info unmasked.' : 'Security Enabled: Sensitive contact info masked.');
-                  }}
-                  title={isDataMasked ? 'Click to unmask contact details' : 'Click to mask contact details'}
-                >
-                  {isDataMasked ? (
-                    <>
-                      <Lock size={15} /> Sensitive Info Masked (Protected)
-                    </>
-                  ) : (
-                    <>
-                      <Eye size={15} /> Sensitive Info Unmasked
-                    </>
-                  )}
-                </button>
+                {!isSuperAdmin ? (
+                  <div
+                    className="ac-mask-toggle-btn masked"
+                    style={{
+                      cursor: 'not-allowed',
+                      opacity: 0.9,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      userSelect: 'none'
+                    }}
+                    title="Sensitive customer data is strictly protected under enterprise privacy policy"
+                  >
+                    <Lock size={15} /> Sensitive Info Masked (Always Protected)
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={`ac-mask-toggle-btn ${isDataMasked ? 'masked' : 'unmasked'}`}
+                    onClick={handleToggleMasking}
+                    title={isDataMasked ? 'Super Admin: Click to verify master password and unlock' : 'Click to lock and re-mask immediately'}
+                  >
+                    {isDataMasked ? (
+                      <>
+                        <Lock size={15} /> Sensitive Info Masked (Unlock)
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={15} /> Sensitive Info Unmasked ({autoRelockSeconds}s)
+                      </>
+                    )}
+                  </button>
+                )}
 
                 <select
                   className="ac-select-filter"
@@ -532,6 +677,68 @@ export default function AllCustomersPage() {
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
+
+                {/* ADMIN DYNAMIC ACCESS PIN GENERATOR & CONTROLLER (Super Admin Exclusive) */}
+                {isSuperAdmin && (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      padding: '5px 12px',
+                      borderRadius: '10px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: '#4F46E5',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    <Key size={14} style={{ color: '#6366F1' }} />
+                    <span style={{ color: '#6366F1' }}>View PIN:</span>
+                    <strong style={{ fontFamily: 'monospace', letterSpacing: '1.5px', fontSize: '0.92rem', color: '#1E1B4B' }}>
+                      {showAdminPinText ? adminAccessPin : '••••••'}
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdminPinText(!showAdminPinText)}
+                      title={showAdminPinText ? "Hide PIN" : "Reveal PIN"}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#6366F1', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showAdminPinText ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyPin}
+                      title="Copy PIN to clipboard"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#6366F1', display: 'flex', alignItems: 'center' }}
+                    >
+                      <Copy size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGenerateNewPin}
+                      title="Generate a new random PIN"
+                      style={{
+                        background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
+                        border: 'none',
+                        color: '#FFF',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: 600,
+                        marginLeft: '4px'
+                      }}
+                    >
+                      <RefreshCw size={11} /> Generate New PIN
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -672,8 +879,8 @@ export default function AllCustomersPage() {
                             <td>
                               <button
                                 className="ac-action-btn"
-                                onClick={() => setSelectedCustomer(cust)}
-                                title="View details"
+                                onClick={() => handleInitiateViewCustomer(cust)}
+                                title={isSuperAdmin ? "View customer details" : "View confidential record (Requires Admin PIN)"}
                               >
                                 <Eye size={13} /> View
                               </button>
@@ -712,12 +919,20 @@ export default function AllCustomersPage() {
 
                   <div className="ac-modal-item">
                     <label>Phone Number</label>
-                    <span>{selectedCustomer.phone || selectedCustomer.mobile || '-'}</span>
+                    <span style={{ fontFamily: isDataMasked ? 'monospace' : 'inherit', letterSpacing: isDataMasked ? '1px' : 'normal' }}>
+                      {isDataMasked
+                        ? maskPhone(selectedCustomer.phone || selectedCustomer.mobile)
+                        : (selectedCustomer.phone || selectedCustomer.mobile || '-')}
+                    </span>
                   </div>
 
                   <div className="ac-modal-item">
                     <label>Email Address</label>
-                    <span>{selectedCustomer.email || '-'}</span>
+                    <span style={{ fontFamily: isDataMasked ? 'monospace' : 'inherit' }}>
+                      {isDataMasked
+                        ? maskEmail(selectedCustomer.email)
+                        : (selectedCustomer.email || '-')}
+                    </span>
                   </div>
 
                   <div className="ac-modal-item">
@@ -752,6 +967,347 @@ export default function AllCustomersPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUPER ADMIN SECURITY VERIFICATION MODAL */}
+          {showUnlockModal && (
+            <div className="ac-modal-overlay" onClick={() => setShowUnlockModal(false)}>
+              <div
+                className="ac-modal-card"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '440px', padding: '26px', borderRadius: '16px' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#EF4444'
+                    }}>
+                      <Lock size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: '#0F172A' }}>
+                        Security Verification
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748B' }}>
+                        Super Admin Master Authentication
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowUnlockModal(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, marginBottom: '20px' }}>
+                  Sensitive customer contact details are protected under corporate privacy policy. Please enter your <strong>Super Admin master password</strong> to unlock contact info for 60 seconds.
+                </p>
+
+                <form onSubmit={handleVerifyUnlock}>
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                      Master Password *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showUnlockPassText ? 'text' : 'password'}
+                        required
+                        autoFocus
+                        value={unlockPassword}
+                        onChange={(e) => {
+                          setUnlockPassword(e.target.value);
+                          setUnlockError('');
+                        }}
+                        placeholder="Enter Super Admin password"
+                        style={{
+                          width: '100%',
+                          padding: '10px 40px 10px 14px',
+                          borderRadius: '10px',
+                          border: unlockError ? '1px solid #EF4444' : '1px solid #CBD5E1',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          background: '#F8FAFC',
+                          color: '#0F172A'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowUnlockPassText(!showUnlockPassText)}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#64748B'
+                        }}
+                      >
+                        {showUnlockPassText ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {unlockError && (
+                      <p style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '6px', marginBottom: 0 }}>
+                        {unlockError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '22px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowUnlockModal(false)}
+                      disabled={unlockSubmitting}
+                      style={{
+                        padding: '9px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#475569',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={unlockSubmitting}
+                      style={{
+                        padding: '9px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                        color: '#FFFFFF',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: unlockSubmitting ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                      }}
+                    >
+                      {unlockSubmitting ? <RefreshCw size={14} className="spin" /> : <Lock size={14} />}
+                      {unlockSubmitting ? 'Verifying...' : 'Verify & Unlock (60s)'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* CUSTOMER VIEW ACCESS PIN MODAL (Protected Customer View) */}
+          {showViewPinModal && (
+            <div
+              className="ac-modal-overlay"
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(6px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99999,
+                padding: '20px'
+              }}
+              onClick={() => {
+                setShowViewPinModal(false);
+                setEnteredViewPin('');
+                setViewPinError('');
+              }}
+            >
+              <div
+                className="ac-modal-card"
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '16px',
+                  width: '100%',
+                  maxWidth: '440px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  overflow: 'hidden',
+                  border: '1px solid #E2E8F0'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)',
+                    padding: '20px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '8px', borderRadius: '10px' }}>
+                      <Key size={20} color="#FFFFFF" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF' }}>
+                        Customer Record Protected
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.78rem', opacity: 0.85, color: '#E0E7FF' }}>
+                        Authorization Required to View Details
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowViewPinModal(false);
+                      setEnteredViewPin('');
+                      setViewPinError('');
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      cursor: 'pointer',
+                      padding: '6px',
+                      display: 'flex'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleVerifyViewPin} style={{ padding: '24px' }}>
+                  {targetCustomerForView && (
+                    <div
+                      style={{
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        marginBottom: '18px'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Requested Customer Record
+                      </div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                        {targetCustomerForView.customerName || targetCustomerForView.name || 'Customer Record'}
+                      </div>
+                      {(targetCustomerForView.companyName || targetCustomerForView.company) && (
+                        <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '2px' }}>
+                          Company: {targetCustomerForView.companyName || targetCustomerForView.company}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <p style={{ margin: '0 0 16px 0', fontSize: '0.84rem', color: '#475569', lineHeight: 1.5 }}>
+                    Viewing customer confidential information requires the single-use authorization PIN generated by your Administrator.
+                  </p>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: '#334155',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      Enter Admin Authorization PIN
+                    </label>
+                    <input
+                      type="text"
+                      autoFocus
+                      maxLength={10}
+                      value={enteredViewPin}
+                      onChange={(e) => {
+                        setEnteredViewPin(e.target.value.replace(/\s+/g, ''));
+                        if (viewPinError) setViewPinError('');
+                      }}
+                      placeholder="e.g. 849201"
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: viewPinError ? '1.5px solid #EF4444' : '1.5px solid #CBD5E1',
+                        fontSize: '1.2rem',
+                        fontWeight: 700,
+                        letterSpacing: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        outline: 'none',
+                        color: '#1E1B4B',
+                        backgroundColor: '#F8FAFC',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    {viewPinError && (
+                      <p style={{ color: '#EF4444', fontSize: '0.8rem', marginTop: '6px', marginBottom: 0, fontWeight: 500 }}>
+                        {viewPinError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowViewPinModal(false);
+                        setEnteredViewPin('');
+                        setViewPinError('');
+                      }}
+                      style={{
+                        padding: '9px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#475569',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '9px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #4F46E5 0%, #4338CA 100%)',
+                        color: '#FFFFFF',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)'
+                      }}
+                    >
+                      <Key size={14} />
+                      Verify & View Record
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

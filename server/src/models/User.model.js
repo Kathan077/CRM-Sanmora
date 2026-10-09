@@ -27,8 +27,15 @@ const userSchema = new mongoose.Schema(
       ref: 'Role',
       required: [true, 'User role is required']
     },
-    // User-level custom permission overrides (adds to or overrides role permissions)
+    // User-level custom permission overrides (extra permissions granted beyond the role)
     customPermissions: [
+      {
+        type: String,
+        enum: ALL_PERMISSIONS
+      }
+    ],
+    // User-level custom permission revocations (permissions explicitly removed/unselected from the role)
+    deniedPermissions: [
       {
         type: String,
         enum: ALL_PERMISSIONS
@@ -87,6 +94,8 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ role: 1, isActive: 1 });
 userSchema.index({ department: 1, isActive: 1 });
 userSchema.index({ reportingTo: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ name: 1 });
 
 // Encrypt password before saving
 userSchema.pre('save', async function (next) {

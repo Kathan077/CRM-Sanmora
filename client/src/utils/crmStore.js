@@ -34,6 +34,24 @@ let _cachedFollowups = null;
 let _cachedTasks = null;
 let _cachedLedgerAccounts = null;
 
+let _storeDispatchTimer = null;
+export const notifyStoreUpdated = (immediate = false) => {
+  if (typeof window === 'undefined') return;
+  if (immediate) {
+    if (_storeDispatchTimer) {
+      clearTimeout(_storeDispatchTimer);
+      _storeDispatchTimer = null;
+    }
+    window.dispatchEvent(new Event('crm_store_updated'));
+    return;
+  }
+  if (_storeDispatchTimer) clearTimeout(_storeDispatchTimer);
+  _storeDispatchTimer = setTimeout(() => {
+    window.dispatchEvent(new Event('crm_store_updated'));
+    _storeDispatchTimer = null;
+  }, 80);
+};
+
 export const clearCrmStoreCache = () => {
   _cachedLeads = null;
   _cachedFollowups = null;
@@ -45,18 +63,38 @@ if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (!e.key || [LEADS_KEY, FOLLOWUPS_KEY, ANNOUNCEMENTS_KEY, 'crm_user', 'user', 'crm_token'].includes(e.key)) {
       clearCrmStoreCache();
-      window.dispatchEvent(new Event('crm_store_updated'));
+      notifyStoreUpdated();
     }
   });
 }
+
+export const safeLocalStorageSet = (key, value) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const stringVal = typeof value === 'string' ? value : JSON.stringify(value);
+    localStorage.setItem(key, stringVal);
+  } catch (e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+      console.warn(`[Storage Engine] Browser quota exceeded for key "${key}". Truncating older entries safely.`);
+      try {
+        if (Array.isArray(value)) {
+          const trimmed = value.slice(0, 500);
+          localStorage.setItem(key, JSON.stringify(trimmed));
+        }
+      } catch (innerErr) {
+        // Retained safely in memory cache
+      }
+    }
+  }
+};
 
 const PURGE_KEY = 'sanmora_crm_purged_v3';
 
 const runAutoPurgeOnce = () => {
   if (typeof window !== 'undefined' && !localStorage.getItem(PURGE_KEY)) {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify([]));
-    localStorage.setItem(LEADS_KEY, JSON.stringify([]));
-    localStorage.setItem(PURGE_KEY, 'true');
+    safeLocalStorageSet(FOLLOWUPS_KEY, []);
+    safeLocalStorageSet(LEADS_KEY, []);
+    safeLocalStorageSet(PURGE_KEY, 'true');
     _cachedFollowups = [];
     _cachedLeads = [];
   }
@@ -258,35 +296,89 @@ export const getNextInquiryNo = () => {
   return `JUL26-${formatted}`;
 };
 
+let _inFlightSyncPromise = null;
+
 export const syncCrmStoreWithBackendApi = async (params = null) => {
   if (typeof window === 'undefined') return;
-  const token = localStorage.getItem('crm_token') || localStorage.getItem('token') || sessionStorage.getItem('crm_token');
+  const token = sessionStorage.getItem('crm_token') || sessionStorage.getItem('token') || localStorage.getItem('crm_token') || localStorage.getItem('token');
   if (!token) return;
 
-  try {
-    const [cRes, fRes, tRes] = await Promise.all([
-      customerService.getAllCustomers(params).catch(() => null),
-      followupService.getAllFollowups(params).catch(() => null),
-      taskService.getAllTasks(params).catch(() => null)
-    ]);
-
-    if (cRes && cRes.success && Array.isArray(cRes.data)) {
-      _cachedLeads = cRes.data;
-      localStorage.setItem(LEADS_KEY, JSON.stringify(cRes.data));
-    }
-    if (fRes && fRes.success && Array.isArray(fRes.data)) {
-      _cachedFollowups = fRes.data;
-      localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(fRes.data));
-    }
-    if (tRes && tRes.success && Array.isArray(tRes.data)) {
-      _cachedTasks = tRes.data;
-      localStorage.setItem(TASKS_KEY, JSON.stringify(tRes.data));
-    }
-
-    window.dispatchEvent(new Event('crm_store_updated'));
-  } catch (err) {
-    console.warn('[CRM Store Sync Warning]:', err.message);
+  // Deduplicate concurrent calls: return existing promise if sync is already running
+  if (_inFlightSyncPromise) {
+    return _inFlightSyncPromise;
   }
+
+  _inFlightSyncPromise = (async () => {
+    try {
+      const [cRes, fRes, tRes] = await Promise.all([
+        customerService.getAllCustomers(params).catch(() => null),
+        followupService.getAllFollowups(params).catch(() => null),
+        taskService.getAllTasks(params).catch(() => null)
+      ]);
+
+      // Check if the current user running sync is an Admin
+      let activeUser = null;
+      try {
+        const uStr = sessionStorage.getItem('crm_user') || localStorage.getItem('crm_user');
+        if (uStr) activeUser = JSON.parse(uStr);
+      } catch (e) {}
+
+      const isAdmin = activeUser ? isAdminUser(activeUser) : false;
+
+      // 1. Leads / Customer Directory Sync
+      if (cRes && cRes.success && Array.isArray(cRes.data)) {
+        if (isAdmin) {
+          _cachedLeads = cRes.data;
+          safeLocalStorageSet(LEADS_KEY, cRes.data);
+        } else {
+          // Authoritative backend data + only keep unsynced pending local leads
+          const existing = getStoredLeads();
+          const pendingLocalLeads = existing.filter(l => String(l.id || '').startsWith('lead-') && !l._id);
+          const finalLeads = [...cRes.data, ...pendingLocalLeads];
+          _cachedLeads = finalLeads;
+          safeLocalStorageSet(LEADS_KEY, finalLeads);
+        }
+      }
+
+      // 2. Followups Sync
+      if (fRes && fRes.success && Array.isArray(fRes.data)) {
+        if (isAdmin) {
+          _cachedFollowups = fRes.data;
+          safeLocalStorageSet(FOLLOWUPS_KEY, fRes.data);
+        } else {
+          // Authoritative backend data + only keep unsynced pending local followups
+          const existing = getStoredFollowups();
+          const pendingLocalFups = existing.filter(f => String(f.id || '').startsWith('fup-') && !f._id);
+          const finalFups = [...fRes.data, ...pendingLocalFups];
+          _cachedFollowups = finalFups;
+          safeLocalStorageSet(FOLLOWUPS_KEY, finalFups);
+        }
+      }
+
+      // 3. Tasks Sync
+      if (tRes && tRes.success && Array.isArray(tRes.data)) {
+        if (isAdmin) {
+          _cachedTasks = tRes.data;
+          safeLocalStorageSet(TASKS_KEY, tRes.data);
+        } else {
+          // Authoritative backend data + only keep unsynced pending local tasks
+          const existing = getStoredTasks();
+          const pendingLocalTasks = existing.filter(t => String(t.id || '').startsWith('task-') && !t._id);
+          const finalTasks = [...tRes.data, ...pendingLocalTasks];
+          _cachedTasks = finalTasks;
+          safeLocalStorageSet(TASKS_KEY, finalTasks);
+        }
+      }
+
+      notifyStoreUpdated();
+    } catch (err) {
+      console.warn('[CRM Store Sync Warning]:', err.message);
+    } finally {
+      _inFlightSyncPromise = null;
+    }
+  })();
+
+  return _inFlightSyncPromise;
 };
 
 export const saveLead = (leadData, currentUser = null) => {
@@ -328,8 +420,8 @@ export const saveLead = (leadData, currentUser = null) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(LEADS_KEY, updatedLeads);
+    notifyStoreUpdated();
   }
   _cachedLeads = updatedLeads;
 
@@ -358,8 +450,8 @@ export const updateLead = (leadId, updatedData) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(LEADS_KEY, updatedLeads);
+    notifyStoreUpdated();
   }
   _cachedLeads = updatedLeads;
 
@@ -399,7 +491,7 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
 
   _cachedLeads = updatedLeads;
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
+    safeLocalStorageSet(LEADS_KEY, updatedLeads);
   }
 
   // Also update associated followups in local store
@@ -442,8 +534,8 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
 
   _cachedFollowups = updatedFollowups;
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updatedFollowups));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(FOLLOWUPS_KEY, updatedFollowups);
+    notifyStoreUpdated();
   }
 
   // Persist to MongoDB backend
@@ -493,7 +585,7 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
 
   _cachedLeads = updatedLeads;
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
+    safeLocalStorageSet(LEADS_KEY, updatedLeads);
   }
 
   // Also update associated followups in local store
@@ -538,8 +630,8 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
 
   _cachedFollowups = updatedFollowups;
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updatedFollowups));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(FOLLOWUPS_KEY, updatedFollowups);
+    notifyStoreUpdated();
   }
 
   // Persist to MongoDB backend
@@ -585,7 +677,7 @@ export const deleteLead = (leadId) => {
   }
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('crm_store_updated'));
+    notifyStoreUpdated();
   }
 
   return updatedLeads;
@@ -700,7 +792,7 @@ export const createOrUpdateFollowupThreadFromLead = (lead, currentUser = null) =
 
   if (typeof window !== 'undefined') {
     localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updatedFollowups));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    notifyStoreUpdated();
   }
   _cachedFollowups = updatedFollowups;
 };
@@ -823,8 +915,8 @@ export const addCustomerFollowup = (fupData, currentUser = null) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updatedFollowups));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(FOLLOWUPS_KEY, updatedFollowups);
+    notifyStoreUpdated();
   }
   _cachedFollowups = updatedFollowups;
 
@@ -901,8 +993,8 @@ export const syncLeadFromFollowupThread = (thread, currentUser = null) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(LEADS_KEY, updatedLeads);
+    notifyStoreUpdated();
   }
   _cachedLeads = updatedLeads;
 };
@@ -923,7 +1015,7 @@ export const updateFollowupStatus = (fupId, newStatus, reason = '—') => {
   });
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updated));
+    safeLocalStorageSet(FOLLOWUPS_KEY, updated);
   }
   _cachedFollowups = updated;
 
@@ -949,7 +1041,7 @@ export const deleteFollowup = (fupId) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updated));
+    safeLocalStorageSet(FOLLOWUPS_KEY, updated);
   }
   _cachedFollowups = updated;
 
@@ -958,13 +1050,13 @@ export const deleteFollowup = (fupId) => {
     const currentLeads = getStoredLeads();
     const updatedLeads = currentLeads.filter(l => l.id !== targetThread.leadId && l.inquiryNo !== targetThread.inquiryNo);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(LEADS_KEY, JSON.stringify(updatedLeads));
+      safeLocalStorageSet(LEADS_KEY, updatedLeads);
       _cachedLeads = updatedLeads;
     }
   }
 
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('crm_store_updated'));
+    notifyStoreUpdated();
   }
 
   return updated;
@@ -972,10 +1064,10 @@ export const deleteFollowup = (fupId) => {
 
 export const deleteAllFollowups = () => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify([]));
-    localStorage.setItem(LEADS_KEY, JSON.stringify([]));
-    localStorage.setItem(PURGE_KEY, 'true');
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(FOLLOWUPS_KEY, []);
+    safeLocalStorageSet(LEADS_KEY, []);
+    safeLocalStorageSet(PURGE_KEY, 'true');
+    notifyStoreUpdated();
   }
   _cachedFollowups = [];
   _cachedLeads = [];
@@ -1007,7 +1099,7 @@ export const deleteFollowupThreadByLeadId = (leadId, inquiryNo = '', phone = '',
   if (typeof window !== 'undefined') {
     localStorage.setItem(FOLLOWUPS_KEY, JSON.stringify(updated));
     _cachedFollowups = updated;
-    window.dispatchEvent(new Event('crm_store_updated'));
+    notifyStoreUpdated();
   } else {
     _cachedFollowups = updated;
   }
@@ -1467,8 +1559,8 @@ export const saveTask = (taskData, currentUser = null) => {
       const updatedList = getStoredTasks().map(t => (t.id === newTask.id ? serverTask : t));
       _cachedTasks = updatedList;
       if (typeof window !== 'undefined') {
-        localStorage.setItem(TASKS_KEY, JSON.stringify(updatedList));
-        window.dispatchEvent(new Event('crm_store_updated'));
+        safeLocalStorageSet(TASKS_KEY, updatedList);
+        notifyStoreUpdated();
       }
     } else {
       syncCrmStoreWithBackendApi();
@@ -1477,8 +1569,8 @@ export const saveTask = (taskData, currentUser = null) => {
 
   const updated = [newTask, ...currentTasks];
   if (typeof window !== 'undefined') {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(TASKS_KEY, updated);
+    notifyStoreUpdated();
   }
   _cachedTasks = updated;
   return newTask;
@@ -1503,8 +1595,8 @@ export const updateTask = (taskId, updatedData) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(TASKS_KEY, updated);
+    notifyStoreUpdated();
   }
   _cachedTasks = updated;
   return updated;
@@ -1523,8 +1615,8 @@ export const deleteTask = (taskId) => {
   }
 
   if (typeof window !== 'undefined') {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('crm_store_updated'));
+    safeLocalStorageSet(TASKS_KEY, updated);
+    notifyStoreUpdated();
   }
   _cachedTasks = updated;
   return updated;
@@ -1681,7 +1773,7 @@ export const saveStoredUserTarget = (userObjOrId, year, month, targetAmount) => 
     store[k] = userTargets;
   });
 
-  localStorage.setItem(TARGETS_KEY, JSON.stringify(store));
+  safeLocalStorageSet(TARGETS_KEY, store);
   _cachedTargets = store;
   return store;
 };
@@ -1729,7 +1821,7 @@ export const getStoredAnnouncements = () => {
   if (_cachedAnnouncements !== null) return _cachedAnnouncements;
   const stored = localStorage.getItem(ANNOUNCEMENTS_KEY);
   if (!stored) {
-    localStorage.setItem(ANNOUNCEMENTS_KEY, JSON.stringify([]));
+    safeLocalStorageSet(ANNOUNCEMENTS_KEY, []);
     _cachedAnnouncements = [];
     return [];
   }
@@ -1776,7 +1868,7 @@ export const saveAnnouncement = (payload, currentUser) => {
   };
 
   const updated = [newAnn, ...current];
-  localStorage.setItem(ANNOUNCEMENTS_KEY, JSON.stringify(updated));
+  safeLocalStorageSet(ANNOUNCEMENTS_KEY, updated);
   _cachedAnnouncements = updated;
   return newAnn;
 };
@@ -1798,7 +1890,7 @@ export const updateAnnouncementStore = (id, payload) => {
     }
     return item;
   });
-  localStorage.setItem(ANNOUNCEMENTS_KEY, JSON.stringify(updated));
+  safeLocalStorageSet(ANNOUNCEMENTS_KEY, updated);
   _cachedAnnouncements = updated;
   return updated;
 };
@@ -1807,7 +1899,7 @@ export const deleteAnnouncementStore = (id) => {
   if (typeof window === 'undefined') return null;
   const current = getStoredAnnouncements();
   const updated = current.filter(item => item.id !== id && item._id !== id);
-  localStorage.setItem(ANNOUNCEMENTS_KEY, JSON.stringify(updated));
+  safeLocalStorageSet(ANNOUNCEMENTS_KEY, updated);
   _cachedAnnouncements = updated;
   return updated;
 };

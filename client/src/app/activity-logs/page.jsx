@@ -16,9 +16,17 @@ import {
 
 export default function ActivityLogsPage() {
   const { user, loading: authLoading, can, sidebarCollapsed } = useAuth();
+  const isAdmin = isAdminUser(user);
 
   // Active View Tab: 'leaderboard' (Sales Target Leaderboard) | 'calendar' (User Calendar) | 'team' (Team Directory) | 'logs' (Global Session Logs)
   const [activeTab, setActiveTab] = useState('leaderboard');
+
+  // Enforce: Non-admin users strictly see only the Target Leaderboard
+  useEffect(() => {
+    if (!isAdmin && activeTab !== 'leaderboard') {
+      setActiveTab('leaderboard');
+    }
+  }, [isAdmin, activeTab]);
 
   // Users List
   const [usersList, setUsersList] = useState([]);
@@ -107,30 +115,30 @@ export default function ActivityLogsPage() {
     }
   }, [effectiveUsersList, selectedUserId, user]);
 
-  // 2. Fetch User Attendance Calendar Data when selectedUserId, calYear, or calMonth changes
+  // 2. Fetch User Attendance Calendar Data (Admin Only)
   const fetchCalendar = useCallback(async () => {
-    if (!selectedUserId) return;
+    if (!isAdmin || !selectedUserId) return;
     try {
       setCalLoading(true);
       const res = await userService.getUserAttendanceCalendar(selectedUserId, {
         year: calYear,
         month: calMonth
       });
-      if (res.success) {
+      if (res && res.success) {
         setCalendarData(res);
       }
     } catch (err) {
-      console.error('Failed to fetch user attendance calendar:', err);
+      console.warn('Failed to fetch user attendance calendar:', err);
     } finally {
       setCalLoading(false);
     }
-  }, [selectedUserId, calYear, calMonth]);
+  }, [isAdmin, selectedUserId, calYear, calMonth]);
 
   useEffect(() => {
-    if (activeTab === 'calendar' && selectedUserId) {
+    if (isAdmin && activeTab === 'calendar' && selectedUserId) {
       fetchCalendar();
     }
-  }, [activeTab, selectedUserId, calYear, calMonth, fetchCalendar]);
+  }, [isAdmin, activeTab, selectedUserId, calYear, calMonth, fetchCalendar]);
 
   // 3. Fetch Global Activity Raw Session Logs
   const fetchRawLogs = useCallback(async () => {
@@ -145,14 +153,14 @@ export default function ActivityLogsPage() {
       if (endDate) params.endDate = endDate;
 
       const res = await userService.getUserActivityLogs(params);
-      if (res.success) {
+      if (res && res.success) {
         setLogs(res.data || []);
         setTotalPages(res.pages || 1);
         setTotalCount(res.total || 0);
         if (res.stats) setStats(res.stats);
       }
     } catch (err) {
-      console.error('Error fetching activity raw logs:', err);
+      console.warn('Error fetching activity raw logs:', err);
     } finally {
       setLogsLoading(false);
     }
@@ -164,35 +172,61 @@ export default function ActivityLogsPage() {
     }
   }, [activeTab, fetchRawLogs]);
 
-  // 🏆 LEDGER REVENUE COMPUTATION PER USER
+  // 🏆 LEDGER REVENUE COMPUTATION PER USER (Strict Assignee Attribution)
   const calculateUserMonthlyCollections = useCallback((uObj, year, month) => {
-    if (typeof window === 'undefined') return 0;
+    if (typeof window === 'undefined' || !uObj) return 0;
     const leads = getStoredLeads();
     const ledgerStore = getStoredLedgerAccounts();
     if (!leads || leads.length === 0) return 0;
 
-    const uId = String(uObj._id || uObj.id || '');
-    const uName = (uObj.name || '').toLowerCase();
-    const uEmail = (uObj.email || '').toLowerCase();
+    const uId = String(uObj._id || uObj.id || '').trim();
+    const uName = (uObj.name || '').toLowerCase().trim();
+    const uEmail = (uObj.email || '').toLowerCase().trim();
 
-    // Filter leads assigned to or created by this user
+    // Filter leads that strictly belong to this user
     const userLeads = leads.filter(l => {
-      const assignedId = String(l.assignedTo?._id || l.assignedTo || l.assignedUserId || '');
-      const createdId = String(l.createdBy?._id || l.createdBy || '');
-      const assignedName = (l.assignedTo?.name || l.assignedTo || '').toString().toLowerCase();
-      const createdName = (l.createdBy?.name || l.createdBy || '').toString().toLowerCase();
+      const assignedId = String(
+        l.assignedToId ||
+        l.assignedUserId ||
+        l.assignedTo?._id ||
+        (typeof l.assignedTo === 'string' && l.assignedTo.startsWith('user-') ? l.assignedTo : '') ||
+        ''
+      ).trim();
+      const rawAssignedName = (typeof l.assignedTo === 'string' ? l.assignedTo : (l.assignedTo?.name || '')).trim();
+      const assignedName = rawAssignedName.toLowerCase();
+      const assignedEmail = (l.assignedTo?.email || '').toLowerCase().trim();
 
-      return (
-        (uId && (assignedId === uId || createdId === uId)) ||
-        (uName && (assignedName.includes(uName) || createdName.includes(uName))) ||
-        (uEmail && (assignedName.includes(uEmail) || createdName.includes(uEmail)))
+      const isAssigned = Boolean(
+        assignedId ||
+        (assignedName && assignedName !== 'unassigned' && assignedName !== '—' && assignedName !== '-')
+      );
+
+      if (isAssigned) {
+        // When assigned, credit belongs EXCLUSIVELY to the assigned salesperson
+        return Boolean(
+          (uId && assignedId && assignedId === uId) ||
+          (uEmail && assignedEmail && assignedEmail === uEmail) ||
+          (uName && assignedName && (assignedName === uName || assignedName.includes(uName) || uName.includes(assignedName)))
+        );
+      }
+
+      // If strictly UNASSIGNED, fallback to creator only if creator is this user
+      const createdId = String(l.createdById || l.createdBy?._id || '').trim();
+      const rawCreatedName = (typeof l.createdBy === 'string' ? l.createdBy : (l.createdBy?.name || '')).trim();
+      const createdName = rawCreatedName.toLowerCase();
+      const createdEmail = (l.createdBy?.email || '').toLowerCase().trim();
+
+      return Boolean(
+        (uId && createdId && createdId === uId) ||
+        (uEmail && createdEmail && createdEmail === uEmail) ||
+        (uName && createdName && (createdName === uName || createdName.includes(uName)))
       );
     });
 
     let totalCollected = 0;
 
     userLeads.forEach(l => {
-      const acc = ledgerStore[l.id];
+      const acc = ledgerStore[l.id] || ledgerStore[l._id] || (l.leadId && ledgerStore[l.leadId]);
       if (acc && Array.isArray(acc.instalments)) {
         acc.instalments.forEach(inst => {
           const isCleared = inst.status === 'Record Payment' || inst.status === 'Cleared' || inst.cleared !== false;
@@ -500,35 +534,37 @@ export default function ActivityLogsPage() {
       <main className={`crm-main-content ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="activity-logs-container">
 
-          {/* ── VIEW MODE SWITCHER TABS ── */}
-          <div className="view-mode-tabs">
-            <button
-              type="button"
-              className={`view-tab-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
-              onClick={() => setActiveTab('leaderboard')}
-            >
-              <Trophy size={18} />
-              <span>Target Leaderboard</span>
-            </button>
+          {/* ── VIEW MODE SWITCHER TABS (Admin Exclusive) ── */}
+          {isAdmin && (
+            <div className="view-mode-tabs">
+              <button
+                type="button"
+                className={`view-tab-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
+                onClick={() => setActiveTab('leaderboard')}
+              >
+                <Trophy size={18} />
+                <span>Target Leaderboard</span>
+              </button>
 
-            <button
-              type="button"
-              className={`view-tab-btn ${activeTab === 'calendar' ? 'active' : ''}`}
-              onClick={() => setActiveTab('calendar')}
-            >
-              <Calendar size={18} />
-              <span>Attendance Calendar</span>
-            </button>
+              <button
+                type="button"
+                className={`view-tab-btn ${activeTab === 'calendar' ? 'active' : ''}`}
+                onClick={() => setActiveTab('calendar')}
+              >
+                <Calendar size={18} />
+                <span>Attendance Calendar</span>
+              </button>
 
-            <button
-              type="button"
-              className={`view-tab-btn ${activeTab === 'team' ? 'active' : ''}`}
-              onClick={() => setActiveTab('team')}
-            >
-              <UserCheck size={18} />
-              <span>Team Directory</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                className={`view-tab-btn ${activeTab === 'team' ? 'active' : ''}`}
+                onClick={() => setActiveTab('team')}
+              >
+                <UserCheck size={18} />
+                <span>Team Directory</span>
+              </button>
+            </div>
+          )}
 
           {/* ── TAB 1: 🏆 MONTHLY SALES TARGET & LEDGER LEADERBOARD ── */}
           {activeTab === 'leaderboard' && (
@@ -796,8 +832,8 @@ export default function ActivityLogsPage() {
             </div>
           )}
 
-          {/* ── TAB 2: INTERACTIVE USER ATTENDANCE CALENDAR ── */}
-          {activeTab === 'calendar' && (
+          {/* ── TAB 2: INTERACTIVE USER ATTENDANCE CALENDAR (Admin Exclusive) ── */}
+          {isAdmin && activeTab === 'calendar' && (
             <div className="user-cal-section">
               
               {/* User Selector Banner Header */}
@@ -1043,8 +1079,8 @@ export default function ActivityLogsPage() {
             </div>
           )}
 
-          {/* ── TAB 3: TEAM DIRECTORY (GRID OF ALL EMPLOYEES) ── */}
-          {activeTab === 'team' && (
+          {/* ── TAB 3: TEAM DIRECTORY (Admin Exclusive) ── */}
+          {isAdmin && activeTab === 'team' && (
             <div>
               <div className="team-directory-header">
                 <div className="team-dir-title-row">
@@ -1126,8 +1162,8 @@ export default function ActivityLogsPage() {
             </div>
           )}
 
-          {/* ── TAB 4: GLOBAL RAW SESSION LOGS TABLE ── */}
-          {activeTab === 'logs' && (
+          {/* ── TAB 4: GLOBAL RAW SESSION LOGS TABLE (Admin Exclusive) ── */}
+          {isAdmin && activeTab === 'logs' && (
             <div>
               <div className="activity-filter-panel">
                 <div className="filter-preset-tabs">

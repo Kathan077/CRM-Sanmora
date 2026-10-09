@@ -20,7 +20,7 @@ async function runTests() {
 
   let server;
   try {
-    server = await startServer();
+    server = await startServer(0);
     const baseURL = `http://localhost:${server.address().port}`;
 
     // 1. Test Healthcheck Endpoint
@@ -73,7 +73,7 @@ async function runTests() {
         Authorization: `Bearer ${adminToken}`
       },
       body: JSON.stringify({
-        name: 'Senior Sales Representative',
+        name: `Senior Sales Representative ${Date.now()}`,
         description: 'Handles high value lead assignments and client followups',
         permissions: ['leads:view_assigned', 'leads:create', 'leads:update', 'leads:change_status', 'followups:view', 'followups:create']
       })
@@ -169,8 +169,86 @@ async function runTests() {
       throw new Error(`Access failed: ${reAccessData.message}`);
     }
 
+    // 10. Test Restricting Access / Denying a Role Permission ("kuch kam dena")
+    logStep(10, 'Admin restricting access: adding "roles:view" to Rahul\'s deniedPermissions');
+    const denyRes = await fetch(`${baseURL}/api/users/${newUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        customPermissions: [],
+        deniedPermissions: ['roles:view']
+      })
+    });
+    if (!denyRes.ok) {
+      throw new Error('Failed to update user deniedPermissions');
+    }
+    logSuccess(`Successfully added "roles:view" to Rahul Sharma\'s deniedPermissions!`);
+
+    // 11. Test that Rahul Sharma is now BLOCKED from accessing /api/roles
+    logStep(11, 'Testing that Rahul Sharma is now BLOCKED from /api/roles due to deniedPermissions');
+    const blockedRes = await fetch(`${baseURL}/api/roles`, {
+      headers: { Authorization: `Bearer ${empToken}` }
+    });
+    const blockedData = await blockedRes.json();
+    if (blockedRes.status === 403) {
+      logSuccess(`RBAC Middleware strictly BLOCKED access as expected! Status 403: "${blockedData.message}"`);
+    } else {
+      throw new Error(`Expected 403 Forbidden after denying permission, but received ${blockedRes.status}`);
+    }
+
+    // 12. Test Restoring Access by clearing deniedPermissions
+    logStep(12, 'Admin restoring base role permissions by clearing deniedPermissions');
+    const restoreRes = await fetch(`${baseURL}/api/users/${newUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        customPermissions: ['roles:view'],
+        deniedPermissions: []
+      })
+    });
+    if (!restoreRes.ok) {
+      throw new Error('Failed to restore permissions');
+    }
+    const restoredAccessRes = await fetch(`${baseURL}/api/roles`, {
+      headers: { Authorization: `Bearer ${empToken}` }
+    });
+    if (restoredAccessRes.status === 200) {
+      logSuccess(`Access successfully RESTORED after clearing deniedPermissions!`);
+    } else {
+      throw new Error('Failed to restore access');
+    }
+
+    // 13. Test Staff Directory Access (Non-admin without users:view accessing /api/users/directory)
+    logStep(13, 'Testing that employee can access Staff Directory (/api/users/directory) without users:view permission');
+    const directoryRes = await fetch(`${baseURL}/api/users/directory`, {
+      headers: { Authorization: `Bearer ${empToken}` }
+    });
+    const directoryData = await directoryRes.json();
+    if (directoryRes.status === 200 && Array.isArray(directoryData.data)) {
+      logSuccess(`Staff Directory accessible to employee! Returned ${directoryData.count} active staff profiles.`);
+    } else {
+      throw new Error(`Failed to access staff directory: ${directoryData.message}`);
+    }
+
+    // 14. Test that Full Admin User Management (/api/users) is STILL strictly BLOCKED for employee
+    logStep(14, 'Testing that full Admin User Management (/api/users) remains BLOCKED with 403');
+    const adminUsersRes = await fetch(`${baseURL}/api/users`, {
+      headers: { Authorization: `Bearer ${empToken}` }
+    });
+    if (adminUsersRes.status === 403) {
+      logSuccess(`Admin user management endpoint strictly protected (403 Forbidden)!`);
+    } else {
+      throw new Error(`Security breach! Expected 403 on /api/users, received ${adminUsersRes.status}`);
+    }
+
     console.log(`\n${GREEN}${BOLD}=======================================================${RESET}`);
-    console.log(`${GREEN}${BOLD}   🎉 ALL 9 BACKEND & RBAC TESTS PASSED SUCCESSFULLY!   ${RESET}`);
+    console.log(`${GREEN}${BOLD}   🎉 ALL 14 BACKEND & RBAC TESTS PASSED SUCCESSFULLY!  ${RESET}`);
     console.log(`${GREEN}${BOLD}=======================================================${RESET}\n`);
 
   } catch (err) {

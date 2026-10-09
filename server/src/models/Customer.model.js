@@ -116,5 +116,8 @@ customerSchema.index({ assignedToId: 1, status: 1, createdAt: -1 });
 customerSchema.index({ createdById: 1, status: 1, createdAt: -1 });
 customerSchema.index({ originalAssignerId: 1 });
 customerSchema.index({ phone: 1, email: 1 });
+customerSchema.index({ inquiryNo: 1 });
+customerSchema.index({ createdAt: -1 });
+customerSchema.index({ customerName: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

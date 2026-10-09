@@ -192,22 +192,37 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+  background: linear-gradient(135deg, #7C3AED 0%, #6366F1 50%, #4F46E5 100%);
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 14px;
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 750;
   cursor: pointer;
-  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.3);
-  transition: all 0.25s ease;
-  animation: bounceMini 2s infinite;
+  box-shadow: 0 3px 14px rgba(124, 58, 237, 0.32);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: bounceMini 2.5s infinite;
+  white-space: nowrap;
+  user-select: none;
+  flex-shrink: 0;
+  height: 32px;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .announcement-header-trigger:hover {
-  transform: translateY(-1px) scale(1.04);
-  box-shadow: 0 5px 18px rgba(124, 58, 237, 0.45);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+  background: linear-gradient(135deg, #6D28D9 0%, #4338CA 100%);
+}
+
+.announcement-header-trigger-fallback {
+  position: fixed;
+  top: 14px;
+  left: calc(var(--sidebar-width, 260px) + 360px);
+  z-index: 60;
+  pointer-events: auto;
 }
 
 @keyframes bounceMini {

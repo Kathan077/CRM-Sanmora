@@ -332,6 +332,9 @@ function Header({ title = 'Dashboard' }) {
           <h1 className="page-title">{title}</h1>
           <span className="header-subtitle-tag">SANMORA CRM ENTERPRISE</span>
         </div>
+
+        {/* 🎊 PRO-ALIGNED MINIMIZED CELEBRATION ANNOUNCEMENT SLOT */}
+        <div id="header-announcement-slot" className="header-announcement-slot" />
       </div>
 
       <div className="header-right">

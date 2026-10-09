@@ -2,6 +2,9 @@ const Role = require('../models/Role.model');
 const User = require('../models/User.model');
 const { PERMISSION_GROUPS, ALL_PERMISSIONS } = require('../constants/permissions');
 
+let rolesCache = { data: null, lastUpdated: 0 };
+const ROLES_CACHE_TTL = 30000;
+
 /**
  * @desc    Get All System Roles
  * @route   GET /api/roles
@@ -9,26 +12,31 @@ const { PERMISSION_GROUPS, ALL_PERMISSIONS } = require('../constants/permissions
  */
 const getAllRoles = async (req, res) => {
   try {
-    const [roles, userCounts] = await Promise.all([
-      Role.find().sort({ createdAt: 1 }).lean(),
-      User.aggregate([
-        { $group: { _id: "$role", count: { $sum: 1 } } }
-      ])
-    ]);
+    const nowMs = Date.now();
+    if (!rolesCache.data || (nowMs - rolesCache.lastUpdated) > ROLES_CACHE_TTL) {
+      const [roles, userCounts] = await Promise.all([
+        Role.find().sort({ createdAt: 1 }).lean(),
+        User.aggregate([
+          { $group: { _id: "$role", count: { $sum: 1 } } }
+        ])
+      ]);
 
-    const countMap = new Map(
-      userCounts.map(c => [c._id ? c._id.toString() : '', c.count])
-    );
+      const countMap = new Map(
+        userCounts.map(c => [c._id ? c._id.toString() : '', c.count])
+      );
 
-    const rolesWithCounts = roles.map((role) => ({
-      ...role,
-      userCount: countMap.get(role._id.toString()) || 0
-    }));
+      const rolesWithCounts = roles.map((role) => ({
+        ...role,
+        userCount: countMap.get(role._id.toString()) || 0
+      }));
+
+      rolesCache = { data: rolesWithCounts, lastUpdated: nowMs };
+    }
 
     res.status(200).json({
       success: true,
-      count: rolesWithCounts.length,
-      data: rolesWithCounts
+      count: rolesCache.data.length,
+      data: rolesCache.data
     });
   } catch (error) {
     res.status(500).json({
@@ -94,6 +102,8 @@ const createRole = async (req, res) => {
       isSystem: false
     });
 
+    rolesCache.data = null;
+
     res.status(201).json({
       success: true,
       message: 'Role created successfully',
@@ -140,6 +150,7 @@ const updateRole = async (req, res) => {
     }
 
     await role.save();
+    rolesCache.data = null;
 
     res.status(200).json({
       success: true,
@@ -187,6 +198,7 @@ const deleteRole = async (req, res) => {
     }
 
     await role.deleteOne();
+    rolesCache.data = null;
 
     res.status(200).json({
       success: true,

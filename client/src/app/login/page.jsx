@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Sparkles, Lock, Mail, ArrowRight, ShieldCheck, CheckCircle2, Eye, EyeOff, Zap, ShieldAlert } from 'lucide-react';
+import { Sparkles, Lock, Mail, ArrowRight, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import ParticleCanvas from '../../components/common/ParticleCanvas';
 import { playLoginAudio } from '../../utils/loginAudio';
 
@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [infoNotice, setInfoNotice] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [filled, setFilled] = useState(false);
   const { login } = useAuth();
   
   const cardRef = useRef(null);
@@ -24,9 +23,6 @@ export default function LoginPage() {
       const notice = sessionStorage.getItem('crm_idle_logout_notice');
       if (notice === '1_hour_inactivity') {
         setInfoNotice('You were automatically logged out due to 1 hour of cursor/keyboard inactivity.');
-        sessionStorage.removeItem('crm_idle_logout_notice');
-      } else if (notice === 'app_closed') {
-        setInfoNotice('You were automatically logged out because the browser or application software was closed.');
         sessionStorage.removeItem('crm_idle_logout_notice');
       }
     }
@@ -65,13 +61,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickFillAdmin = () => {
-    setEmail('admin@sanmoracrm.com');
-    setPassword('Admin@123456');
-    setError('');
-    setFilled(true);
-    setTimeout(() => setFilled(false), 2000);
-  };
 
   return (
     <main className="login-container">
@@ -193,29 +182,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="demo-credentials-box">
-          <div className="demo-header">
-            <ShieldCheck size={16} className="demo-icon" />
-            <span>Quick Test Access</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleQuickFillAdmin}
-            className={`demo-btn ${filled ? 'filled-success' : ''}`}
-          >
-            {filled ? (
-              <>
-                <CheckCircle2 size={16} className="check-icon animate-bounce" />
-                <span>Credentials Auto-Filled!</span>
-              </>
-            ) : (
-              <>
-                <Zap size={15} className="zap-icon" />
-                <span>Fill Super Admin (admin@sanmoracrm.com)</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       <style jsx>{`
@@ -548,71 +514,14 @@ export default function LoginPage() {
           to { transform: rotate(360deg); }
         }
 
-        .demo-credentials-box {
-          margin-top: 32px;
-          padding-top: 24px;
-          border-top: 1px dashed rgba(124, 58, 237, 0.2);
-        }
 
-        .demo-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          font-size: 0.78rem;
-          font-weight: 800;
-          color: #64748B;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          margin-bottom: 12px;
-        }
 
-        :global(.demo-icon) {
-          color: #7C3AED;
-        }
 
-        .demo-btn {
-          width: 100%;
-          padding: 12px 16px;
-          border-radius: 14px;
-          background: rgba(124, 58, 237, 0.06);
-          border: 1px solid rgba(124, 58, 237, 0.18);
-          color: #7C3AED;
-          font-size: 0.85rem;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          cursor: pointer;
-        }
 
-        .demo-btn:hover {
-          background: rgba(124, 58, 237, 0.14);
-          border-color: rgba(124, 58, 237, 0.35);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.2);
-        }
 
-        .demo-btn.filled-success {
-          background: rgba(16, 185, 129, 0.12);
-          border-color: rgba(16, 185, 129, 0.4);
-          color: #059669;
-        }
 
-        :global(.zap-icon) {
-          color: #7C3AED;
-          transition: transform 0.3s ease;
-        }
 
-        .demo-btn:hover :global(.zap-icon) {
-          transform: scale(1.2) rotate(10deg);
-        }
 
-        :global(.check-icon) {
-          color: #10B981;
-        }
       `}</style>
     </main>
   );

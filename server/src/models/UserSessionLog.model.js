@@ -47,6 +47,10 @@ const userSessionLogSchema = new mongoose.Schema(
 );
 
 userSessionLogSchema.index({ user: 1, isActive: 1 });
+userSessionLogSchema.index({ loginTime: -1 });
+userSessionLogSchema.index({ logoutType: 1 });
 userSessionLogSchema.index({ createdAt: -1 });
+// Auto-expire session logs after 90 days to prevent infinite table bloat for 100k users
+userSessionLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
 module.exports = mongoose.model('UserSessionLog', userSessionLogSchema);

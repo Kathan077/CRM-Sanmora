@@ -12,11 +12,14 @@ const generateToken = (id) => {
   );
 };
 
-// Helper to compute effective permissions
+// Helper to compute effective permissions: (Role Permissions + Custom Grants) - Denied Revocations
 const getEffectivePermissions = (user) => {
   const rolePermissions = user.role ? user.role.permissions || [] : [];
   const customPermissions = user.customPermissions || [];
-  return Array.from(new Set([...rolePermissions, ...customPermissions]));
+  const deniedPermissions = user.deniedPermissions || [];
+  const effective = new Set([...rolePermissions, ...customPermissions]);
+  deniedPermissions.forEach((p) => effective.delete(p));
+  return Array.from(effective);
 };
 
 /**
@@ -65,15 +68,26 @@ const login = async (req, res) => {
 
     const now = new Date();
 
-    // Close any previous stale active session logs for this user
-    const previousActiveLogs = await UserSessionLog.find({ user: user._id, isActive: true });
-    for (const oldLog of previousActiveLogs) {
-      const duration = Math.max(0, Math.round((now.getTime() - new Date(oldLog.loginTime).getTime()) / 1000));
-      oldLog.logoutTime = now;
-      oldLog.logoutType = 'session_expired';
-      oldLog.sessionDuration = duration;
-      oldLog.isActive = false;
-      await oldLog.save();
+    // Close any previous stale active session logs for this user in a single atomic batch
+    const previousActiveLogs = await UserSessionLog.find({ user: user._id, isActive: true }).lean();
+    if (previousActiveLogs.length > 0) {
+      const bulkOps = previousActiveLogs.map(oldLog => {
+        const duration = Math.max(0, Math.round((now.getTime() - new Date(oldLog.loginTime).getTime()) / 1000));
+        return {
+          updateOne: {
+            filter: { _id: oldLog._id },
+            update: {
+              $set: {
+                logoutTime: now,
+                logoutType: 'session_expired',
+                sessionDuration: duration,
+                isActive: false
+              }
+            }
+          }
+        };
+      });
+      await UserSessionLog.bulkWrite(bulkOps);
     }
 
     // Create new UserSessionLog
@@ -115,6 +129,8 @@ const login = async (req, res) => {
             isSystem: user.role.isSystem
           },
           monthlyTargets: user.monthlyTargets || [],
+          customPermissions: user.customPermissions || [],
+          deniedPermissions: user.deniedPermissions || [],
           effectivePermissions
         }
       }
@@ -153,7 +169,8 @@ const getMe = async (req, res) => {
         isActive: user.isActive,
         role: user.role,
         monthlyTargets: user.monthlyTargets || [],
-        customPermissions: user.customPermissions,
+        customPermissions: user.customPermissions || [],
+        deniedPermissions: user.deniedPermissions || [],
         effectivePermissions
       }
     });

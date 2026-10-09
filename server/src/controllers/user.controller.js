@@ -1,8 +1,12 @@
+const mongoose = require('mongoose');
 const User = require('../models/User.model');
 const Role = require('../models/Role.model');
 const UserSessionLog = require('../models/UserSessionLog.model');
 const { ALL_PERMISSIONS } = require('../constants/permissions');
 const { invalidateUserAuthCache } = require('../middleware/auth.middleware');
+const { invalidateCustomerHierarchyCache } = require('./customer.controller');
+const { invalidateFollowupHierarchyCache } = require('./followup.controller');
+let globalSessionStatsCache = { data: null, lastUpdated: 0 };
 
 /**
  * @desc    Get All Users / Employees
@@ -11,7 +15,7 @@ const { invalidateUserAuthCache } = require('../middleware/auth.middleware');
  */
 const getAllUsers = async (req, res) => {
   try {
-    const { roleId, status, search } = req.query;
+    const { roleId, status, search, page: qPage, limit: qLimit } = req.query;
 
     const query = {};
 
@@ -31,16 +35,40 @@ const getAllUsers = async (req, res) => {
       ];
     }
 
-    const users = await User.find(query)
+    const page = parseInt(qPage, 10);
+    const limit = parseInt(qLimit, 10);
+    const hasPagination = !isNaN(page) && !isNaN(limit) && page > 0 && limit > 0;
+
+    let queryExec = User.find(query)
       .select('-password')
       .populate('role')
       .populate('reportingTo', '_id name email department designation')
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort({ createdAt: -1 });
+
+    if (hasPagination) {
+      const skip = (page - 1) * limit;
+      const [users, total] = await Promise.all([
+        queryExec.skip(skip).limit(limit).lean(),
+        User.countDocuments(query)
+      ]);
+      return res.status(200).json({
+        success: true,
+        count: users.length,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        data: users
+      });
+    }
+
+    const users = await queryExec.lean();
 
     res.status(200).json({
       success: true,
       count: users.length,
+      total: users.length,
+      page: 1,
+      pages: 1,
       data: users
     });
   } catch (error) {
@@ -73,12 +101,17 @@ const getUserById = async (req, res) => {
 
     const rolePermissions = user.role ? user.role.permissions || [] : [];
     const customPermissions = user.customPermissions || [];
-    const effectivePermissions = Array.from(new Set([...rolePermissions, ...customPermissions]));
+    const deniedPermissions = user.deniedPermissions || [];
+    const effectiveSet = new Set([...rolePermissions, ...customPermissions]);
+    deniedPermissions.forEach((p) => effectiveSet.delete(p));
+    const effectivePermissions = Array.from(effectiveSet);
 
     res.status(200).json({
       success: true,
       data: {
         ...user,
+        customPermissions,
+        deniedPermissions,
         effectivePermissions
       }
     });
@@ -124,7 +157,13 @@ const createUser = async (req, res) => {
       });
     }
 
-    const roleObj = await Role.findById(roleId);
+    let roleObj = null;
+    if (roleId && mongoose.Types.ObjectId.isValid(roleId)) {
+      roleObj = await Role.findById(roleId);
+    }
+    if (!roleObj && roleId) {
+      roleObj = await Role.findOne({ name: roleId });
+    }
     if (!roleObj) {
       return res.status(400).json({
         success: false,
@@ -135,19 +174,30 @@ const createUser = async (req, res) => {
     const validCustomPermissions = (customPermissions || []).filter((p) =>
       ALL_PERMISSIONS.includes(p)
     );
+    const validDeniedPermissions = (req.body.deniedPermissions || []).filter((p) =>
+      ALL_PERMISSIONS.includes(p)
+    );
+
+    const validReportingTo = (reportingTo && mongoose.Types.ObjectId.isValid(reportingTo))
+      ? reportingTo
+      : null;
 
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password,
-      role: roleId,
+      role: roleObj._id,
       phone: phone ? phone.trim() : '',
       department: department ? department.trim() : 'Sales',
       designation: designation ? designation.trim() : 'Executive',
       customPermissions: validCustomPermissions,
-      reportingTo: reportingTo || null,
+      deniedPermissions: validDeniedPermissions,
+      reportingTo: validReportingTo,
       isActive: true
     });
+
+    invalidateCustomerHierarchyCache();
+    invalidateFollowupHierarchyCache();
 
     const populatedUser = await User.findById(user._id)
       .select('-password')
@@ -184,6 +234,7 @@ const updateUser = async (req, res) => {
       department,
       designation,
       customPermissions,
+      deniedPermissions,
       reportingTo
     } = req.body;
 
@@ -197,14 +248,20 @@ const updateUser = async (req, res) => {
     }
 
     if (roleId) {
-      const roleObj = await Role.findById(roleId);
+      let roleObj = null;
+      if (mongoose.Types.ObjectId.isValid(roleId)) {
+        roleObj = await Role.findById(roleId);
+      }
+      if (!roleObj) {
+        roleObj = await Role.findOne({ name: roleId });
+      }
       if (!roleObj) {
         return res.status(400).json({
           success: false,
           message: 'Invalid role ID'
         });
       }
-      user.role = roleId;
+      user.role = roleObj._id;
     }
 
     if (name) user.name = name.trim();
@@ -213,15 +270,26 @@ const updateUser = async (req, res) => {
     if (phone !== undefined) user.phone = phone.trim();
     if (department) user.department = department.trim();
     if (designation) user.designation = designation.trim();
-    if (reportingTo !== undefined) user.reportingTo = reportingTo || null;
-    if (customPermissions) {
-      user.customPermissions = customPermissions.filter((p) =>
+    if (reportingTo !== undefined) {
+      user.reportingTo = (reportingTo && mongoose.Types.ObjectId.isValid(reportingTo))
+        ? reportingTo
+        : null;
+    }
+    if (customPermissions !== undefined) {
+      user.customPermissions = (customPermissions || []).filter((p) =>
+        ALL_PERMISSIONS.includes(p)
+      );
+    }
+    if (deniedPermissions !== undefined) {
+      user.deniedPermissions = (deniedPermissions || []).filter((p) =>
         ALL_PERMISSIONS.includes(p)
       );
     }
 
     await user.save();
     invalidateUserAuthCache(user._id);
+    invalidateCustomerHierarchyCache();
+    invalidateFollowupHierarchyCache();
 
     const updatedUser = await User.findById(user._id)
       .select('-password')
@@ -275,6 +343,8 @@ const toggleUserStatus = async (req, res) => {
     user.isActive = !user.isActive;
     await user.save();
     invalidateUserAuthCache(user._id);
+    invalidateCustomerHierarchyCache();
+    invalidateFollowupHierarchyCache();
 
     res.status(200).json({
       success: true,
@@ -319,10 +389,39 @@ const deleteUser = async (req, res) => {
 
     await user.deleteOne();
     invalidateUserAuthCache(user._id);
+    invalidateCustomerHierarchyCache();
+    invalidateFollowupHierarchyCache();
 
     res.status(200).json({
       success: true,
       message: 'User deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Get Active Staff Directory for Dropdowns & Hierarchy Scoping
+ * @route   GET /api/users/directory
+ * @access  Private (All authenticated employees)
+ */
+const getStaffDirectory = async (req, res) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('_id name email department designation role reportingTo')
+      .populate('role', '_id name isSystem')
+      .populate('reportingTo', '_id name email department designation')
+      .sort({ name: 1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users
     });
   } catch (error) {
     res.status(500).json({
@@ -398,24 +497,39 @@ const getUserSessionLogs = async (req, res) => {
       UserSessionLog.countDocuments(query)
     ]);
 
-    // Statistics calculations
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Statistics calculations (cached for 15s to eliminate heavy table counts under concurrent load)
+    const nowMs = Date.now();
+    if (!globalSessionStatsCache.data || (nowMs - globalSessionStatsCache.lastUpdated) > 15000) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-    const [totalActiveNow, loginsToday, idleTimeoutsCount, manualLogoutsCount, totalLogs] = await Promise.all([
-      UserSessionLog.countDocuments({ isActive: true }),
-      UserSessionLog.countDocuments({ loginTime: { $gte: todayStart } }),
-      UserSessionLog.countDocuments({ logoutType: 'idle_timeout' }),
-      UserSessionLog.countDocuments({ logoutType: 'manual' }),
-      UserSessionLog.countDocuments({})
-    ]);
+      const [totalActiveNow, loginsToday, idleTimeoutsCount, manualLogoutsCount, totalLogs, avgDurationResult] = await Promise.all([
+        UserSessionLog.countDocuments({ isActive: true }),
+        UserSessionLog.countDocuments({ loginTime: { $gte: todayStart } }),
+        UserSessionLog.countDocuments({ logoutType: 'idle_timeout' }),
+        UserSessionLog.countDocuments({ logoutType: 'manual' }),
+        UserSessionLog.countDocuments({}),
+        UserSessionLog.aggregate([
+          { $match: { sessionDuration: { $gt: 0 } } },
+          { $group: { _id: null, avgDuration: { $avg: '$sessionDuration' } } }
+        ])
+      ]);
 
-    // Calculate average session duration for logged out sessions
-    const avgDurationResult = await UserSessionLog.aggregate([
-      { $match: { sessionDuration: { $gt: 0 } } },
-      { $group: { _id: null, avgDuration: { $avg: '$sessionDuration' } } }
-    ]);
-    const avgDurationSeconds = avgDurationResult.length > 0 ? Math.round(avgDurationResult[0].avgDuration) : 0;
+      const avgDurationSeconds = avgDurationResult.length > 0 ? Math.round(avgDurationResult[0].avgDuration) : 0;
+      globalSessionStatsCache = {
+        data: {
+          totalActiveNow,
+          loginsToday,
+          idleTimeoutsCount,
+          manualLogoutsCount,
+          totalLogs,
+          avgDurationSeconds
+        },
+        lastUpdated: nowMs
+      };
+    }
+
+    const stats = globalSessionStatsCache.data;
 
     res.status(200).json({
       success: true,
@@ -656,6 +770,7 @@ const setUserMonthlyTarget = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  getStaffDirectory,
   getUserById,
   createUser,
   updateUser,

@@ -55,11 +55,13 @@ const hasPermission = (requiredPermission) => {
       return next();
     }
 
-    // Combine role permissions + user-level custom permissions
+    // Combine role permissions + user-level custom permissions - denied permissions
     const userRole = req.user.role;
     const rolePermissions = userRole ? userRole.permissions || [] : [];
     const customPermissions = req.user.customPermissions || [];
+    const deniedPermissions = req.user.deniedPermissions || [];
     const effectivePermissions = new Set([...rolePermissions, ...customPermissions]);
+    deniedPermissions.forEach((p) => effectivePermissions.delete(p));
 
     if (effectivePermissions.has(requiredPermission)) {
       return next();
@@ -70,6 +72,59 @@ const hasPermission = (requiredPermission) => {
       message: `Access Denied! You lack required permission: '${requiredPermission}'`
     });
   };
+};
+
+const hasAnyPermission = (...permissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Super Admin / Admin bypass: Admin has full access to everything
+    if (isAdminUser(req.user)) {
+      return next();
+    }
+
+    // Combine role permissions + user-level custom permissions - denied permissions
+    const userRole = req.user.role;
+    const rolePermissions = userRole ? userRole.permissions || [] : [];
+    const customPermissions = req.user.customPermissions || [];
+    const deniedPermissions = req.user.deniedPermissions || [];
+    const effectivePermissions = new Set([...rolePermissions, ...customPermissions]);
+    deniedPermissions.forEach((p) => effectivePermissions.delete(p));
+
+    const hasMatch = permissions.some((p) => effectivePermissions.has(p));
+    if (hasMatch) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Access Denied! You lack required permission: '${permissions[0]}'`
+    });
+  };
+};
+
+const canViewAttendanceCalendar = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  // Strictly restricted: Only Super Admin / Admin can view attendance calendar
+  if (isAdminUser(req.user)) {
+    return next();
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: "Access Denied! Attendance calendar is confidential and restricted to Super Admin only."
+  });
 };
 
 /**
@@ -87,5 +142,7 @@ const requireSuperAdmin = (req, res, next) => {
 
 module.exports = {
   hasPermission,
+  hasAnyPermission,
+  canViewAttendanceCalendar,
   requireSuperAdmin
 };

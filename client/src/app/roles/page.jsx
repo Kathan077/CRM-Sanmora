@@ -96,6 +96,7 @@ export default function RolesPage() {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [userCustomPermissions, setUserCustomPermissions] = useState([]);
+  const [userDeniedPermissions, setUserDeniedPermissions] = useState([]);
   const [userSaveSubmitting, setUserSaveSubmitting] = useState(false);
   const [userSaveSuccess, setUserSaveSuccess] = useState('');
   const [userSaveError, setUserSaveError] = useState('');
@@ -128,12 +129,14 @@ export default function RolesPage() {
         const fetchedUsers = (usersRes.data || []).map((u) => ({
           ...u,
           customPermissions: normalizePermissionArray(u.customPermissions || []),
+          deniedPermissions: normalizePermissionArray(u.deniedPermissions || []),
           role: u.role ? { ...u.role, permissions: normalizePermissionArray(u.role.permissions || []) } : u.role
         }));
         setUsers(fetchedUsers);
         if (fetchedUsers.length > 0 && !selectedUser) {
           setSelectedUser(fetchedUsers[0]);
           setUserCustomPermissions(fetchedUsers[0].customPermissions || []);
+          setUserDeniedPermissions(fetchedUsers[0].deniedPermissions || []);
         }
       }
     } catch (err) {
@@ -243,6 +246,7 @@ export default function RolesPage() {
   const handleSelectUser = (u) => {
     setSelectedUser(u);
     setUserCustomPermissions(u.customPermissions || []);
+    setUserDeniedPermissions(u.deniedPermissions || []);
     setUserSaveSuccess('');
     setUserSaveError('');
   };
@@ -252,19 +256,24 @@ export default function RolesPage() {
     
     const baseRolePerms = (selectedUser.role?.permissions || []).map(normalizePermissionKey);
     if (baseRolePerms.includes(permKey)) {
-      return; // Inherited from base role
-    }
-
-    if (userCustomPermissions.includes(permKey)) {
-      setUserCustomPermissions(userCustomPermissions.filter((p) => p !== permKey));
+      if (userDeniedPermissions.includes(permKey)) {
+        setUserDeniedPermissions(userDeniedPermissions.filter((p) => p !== permKey));
+      } else {
+        setUserDeniedPermissions([...userDeniedPermissions, permKey]);
+      }
     } else {
-      setUserCustomPermissions([...userCustomPermissions, permKey]);
+      if (userCustomPermissions.includes(permKey)) {
+        setUserCustomPermissions(userCustomPermissions.filter((p) => p !== permKey));
+      } else {
+        setUserCustomPermissions([...userCustomPermissions, permKey]);
+      }
     }
   };
 
   const handleResetUserCustomPermissions = () => {
     if (selectedUser) {
       setUserCustomPermissions([]);
+      setUserDeniedPermissions([]);
       setUserSaveSuccess('Reset to base role permissions');
       setTimeout(() => setUserSaveSuccess(''), 3000);
     }
@@ -274,6 +283,7 @@ export default function RolesPage() {
     if (selectedUser) {
       const baseRolePerms = (selectedUser.role?.permissions || []).map(normalizePermissionKey);
       const extraPerms = allPermissionKeys.filter((k) => !baseRolePerms.includes(k));
+      setUserDeniedPermissions([]);
       setUserCustomPermissions(extraPerms);
     }
   };
@@ -287,19 +297,21 @@ export default function RolesPage() {
     try {
       const baseRolePerms = (selectedUser.role?.permissions || []).map(normalizePermissionKey);
       const extraPerms = userCustomPermissions.filter((p) => !baseRolePerms.includes(p));
+      const deniedPerms = userDeniedPermissions.filter((p) => baseRolePerms.includes(p));
 
       const res = await userService.updateUser(selectedUser._id, {
-        customPermissions: extraPerms
+        customPermissions: extraPerms,
+        deniedPermissions: deniedPerms
       });
 
       if (res.success) {
-        setUserSaveSuccess(`Custom permissions updated successfully for ${selectedUser.name}! Only this employee receives these extra access privileges.`);
+        setUserSaveSuccess(`Custom permissions updated successfully for ${selectedUser.name}!`);
         setUsers((prev) =>
-          prev.map((u) => (u._id === selectedUser._id ? { ...u, customPermissions: extraPerms } : u))
+          prev.map((u) => (u._id === selectedUser._id ? { ...u, customPermissions: extraPerms, deniedPermissions: deniedPerms } : u))
         );
-        setSelectedUser((prev) => ({ ...prev, customPermissions: extraPerms }));
+        setSelectedUser((prev) => ({ ...prev, customPermissions: extraPerms, deniedPermissions: deniedPerms }));
         
-        if (currentUser && currentUser.id === selectedUser._id) {
+        if (currentUser && (currentUser.id === selectedUser._id || currentUser._id === selectedUser._id)) {
           refreshUser();
         }
         setTimeout(() => setUserSaveSuccess(''), 4000);

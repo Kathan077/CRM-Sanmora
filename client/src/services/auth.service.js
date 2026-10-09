@@ -4,11 +4,17 @@ export const authService = {
   async login(email, password) {
     const res = await apiRequest('/auth/login', 'POST', { email, password });
     if (res.success && res.data?.token) {
+      // Clear previous cached records so new user starts with clean scoped data
+      localStorage.removeItem('sanmora_crm_leads_v1');
+      localStorage.removeItem('sanmora_crm_followups_v1');
+      localStorage.removeItem('sanmora_crm_tasks_v1');
+
       localStorage.setItem('crm_token', res.data.token);
       localStorage.setItem('crm_user', JSON.stringify(res.data.user));
       localStorage.setItem('crm_last_activity', Date.now().toString());
       sessionStorage.setItem('crm_session_active', 'true');
       sessionStorage.setItem('crm_token', res.data.token);
+      sessionStorage.setItem('crm_user', JSON.stringify(res.data.user));
       if (res.data.sessionId) {
         localStorage.setItem('crm_session_id', res.data.sessionId);
       }
@@ -51,8 +57,12 @@ export const authService = {
       localStorage.removeItem('crm_user');
       localStorage.removeItem('crm_session_id');
       localStorage.removeItem('crm_last_activity');
+      localStorage.removeItem('sanmora_crm_leads_v1');
+      localStorage.removeItem('sanmora_crm_followups_v1');
+      localStorage.removeItem('sanmora_crm_tasks_v1');
       sessionStorage.removeItem('crm_session_active');
       sessionStorage.removeItem('crm_token');
+      sessionStorage.removeItem('crm_user');
     }
   }
 };

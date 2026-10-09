@@ -119,6 +119,11 @@ followupSchema.index({ assignedToId: 1, status: 1, updatedAt: -1 });
 followupSchema.index({ createdById: 1, status: 1, updatedAt: -1 });
 followupSchema.index({ originalAssignerId: 1 });
 followupSchema.index({ followupDate: 1, nextFollowupDate: 1 });
+followupSchema.index({ leadId: 1 });
+followupSchema.index({ inquiryNo: 1 });
+followupSchema.index({ phone: 1 });
+followupSchema.index({ updatedAt: -1 });
+followupSchema.index({ createdAt: -1 });
 followupSchema.index({ customerName: 'text', notes: 'text', phone: 'text', inquiryNo: 'text' });
 
 module.exports = mongoose.model('Followup', followupSchema);

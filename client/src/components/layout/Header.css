@@ -6,7 +6,17 @@
   right: 0;
   width: 100vw;
   z-index: 60;
+  pointer-events: none;
+}
+
+.crm-announcement-fullwidth .global-announcement-wrapper {
   pointer-events: auto;
+}
+
+.header-announcement-slot {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* --- GOD-LEVEL ULTRA-LUXURY TOPBAR HEADER CSS --- */

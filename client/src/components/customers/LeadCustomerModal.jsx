@@ -52,16 +52,29 @@ export default function LeadCustomerModal({
 }) {
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const currentUserName = currentUser?.name || currentUser?.username || 'smit';
-  const currentUserId   = String(currentUser?.id || currentUser?._id || '1');
+  let activeUser = currentUser;
+  if (!activeUser && typeof window !== 'undefined') {
+    try {
+      const uStr = sessionStorage.getItem('crm_user') || localStorage.getItem('crm_user');
+      if (uStr) activeUser = JSON.parse(uStr);
+    } catch (e) {}
+  }
 
-  const selectEmployees = getCombinedEmployees(employees);
+  const currentUserName = activeUser?.name || activeUser?.username || 'Staff';
+  const currentUserId   = String(activeUser?.id || activeUser?._id || '');
+
+  let rawEmployees = Array.isArray(employees) && employees.length > 0 ? [...employees] : [];
+  if (activeUser && currentUserId && !rawEmployees.some(e => String(e._id || e.id) === currentUserId)) {
+    rawEmployees = [activeUser, ...rawEmployees];
+  }
+
+  const selectEmployees = rawEmployees.length > 0 ? rawEmployees : getCombinedEmployees([]);
 
   const currentUserOption = selectEmployees.find(
     emp => String(emp._id || emp.id) === currentUserId || (emp.name || emp.username)?.toLowerCase() === currentUserName.toLowerCase()
-  ) || selectEmployees[0];
+  ) || (currentUserId ? { _id: currentUserId, name: currentUserName } : selectEmployees[0]);
 
-  const defaultAssignedId = currentUserOption ? String(currentUserOption._id || currentUserOption.id) : currentUserId;
+  const defaultAssignedId = initialData?.assignedToId || (currentUserOption ? String(currentUserOption._id || currentUserOption.id) : currentUserId);
 
   const [formData, setFormData] = useState({
     inquiryNo:        initialData?.inquiryNo        || getNextInquiryNo(),
@@ -368,9 +381,9 @@ export default function LeadCustomerModal({
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     const assignedEmp = selectEmployees.find(emp => String(emp._id || emp.id) === String(formData.assignedToId));
-    const assignedName = assignedEmp ? (assignedEmp.name || assignedEmp.username) : (currentUser?.name || currentUser?.username || 'Staff');
-    const assignedId   = assignedEmp ? String(assignedEmp._id || assignedEmp.id) : String(formData.assignedToId || currentUser?.id || currentUser?._id || '1');
-    const assignedUsername = assignedEmp ? (assignedEmp.username || '') : (currentUser?.username || '');
+    const assignedName = assignedEmp ? (assignedEmp.name || assignedEmp.username) : currentUserName;
+    const assignedId   = assignedEmp ? String(assignedEmp._id || assignedEmp.id) : (currentUserId || String(formData.assignedToId || ''));
+    const assignedUsername = assignedEmp ? (assignedEmp.username || '') : (activeUser?.username || '');
 
     onSubmit({
       ...formData,
@@ -380,8 +393,8 @@ export default function LeadCustomerModal({
       assignedTo:         assignedName,
       assignedToId:       assignedId,
       assignedToUsername: assignedUsername,
-      createdBy:          currentUser?.name || currentUser?.username || 'Staff',
-      createdById:        String(currentUser?.id || currentUser?._id || '1'),
+      createdBy:          currentUserName,
+      createdById:        currentUserId,
       status:             formData.leadStatus,
     });
   };

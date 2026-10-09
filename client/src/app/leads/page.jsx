@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
@@ -46,26 +46,50 @@ export default function LeadsPage() {
   const [selectedLeadForAssign, setSelectedLeadForAssign] = useState(null);
   const [selectedAssignEmployee, setSelectedAssignEmployee] = useState('');
 
-  const loadLeads = useCallback((empList = employees) => {
+  const employeesRef = useRef(employees);
+  useEffect(() => {
+    employeesRef.current = employees;
+  }, [employees]);
+
+  const loadLeads = useCallback((empList = null) => {
     const rawData = getStoredLeads();
-    const scoped = filterByRole(rawData, user, empList);
+    const effectiveEmployees = empList || employeesRef.current || [];
+    const scoped = filterByRole(rawData, user, effectiveEmployees);
     setLeads(scoped);
-  }, [user, employees]);
+  }, [user]);
 
   useEffect(() => {
-    loadLeads(employees);
+    loadLeads();
+
+    let debounceTimer = null;
+    const handleStoreUpdate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        loadLeads();
+      }, 50);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('crm_store_updated', handleStoreUpdate);
+    }
 
     async function loadEmployees() {
       const token = typeof window !== 'undefined'
-        ? (localStorage.getItem('crm_token') || localStorage.getItem('token') || sessionStorage.getItem('crm_token'))
+        ? (sessionStorage.getItem('crm_token') || sessionStorage.getItem('token') || localStorage.getItem('crm_token') || localStorage.getItem('token'))
         : null;
       if (!token) return;
 
       try {
-        const res = await userService.getAllUsers();
+        const res = await userService.getStaffDirectory();
         if (res && res.success) {
           const empData = res.data || [];
-          setEmployees(empData);
+          setEmployees(prev => {
+            if (prev.length === empData.length && prev[0]?._id === empData[0]?._id) {
+              return prev;
+            }
+            return empData;
+          });
+          employeesRef.current = empData;
           if (empData.length > 0) {
             setSelectedAssignEmployee(empData[0]._id);
           }
@@ -76,6 +100,13 @@ export default function LeadsPage() {
       }
     }
     loadEmployees();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('crm_store_updated', handleStoreUpdate);
+      }
+    };
   }, [user, loadLeads]);
 
   const handleOpenAssign = (lead) => {
@@ -213,7 +244,7 @@ export default function LeadsPage() {
                       <div className="lead-card-footer">
                         <div className="assignee-badge" title="Assigned Owner">
                           <UserCheck size={13} />
-                          <span>{l.assignedTo || 'smit'}</span>
+                          <span>{l.assignedTo || 'Unassigned'}</span>
                         </div>
 
                         {can('leads:assign') && (
@@ -256,7 +287,7 @@ export default function LeadsPage() {
           loadLeads();
           setShowAddModal(false);
         }}
-        employees={employees.length > 0 ? employees : [{ _id: '1', name: 'smit', role: { name: 'Admin' } }]}
+        employees={employees.length > 0 ? employees : (user ? [user] : [])}
         currentUser={user}
       />
 

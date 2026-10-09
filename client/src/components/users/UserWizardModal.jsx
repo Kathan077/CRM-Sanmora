@@ -190,7 +190,7 @@ export default function UserWizardModal({
     return String(roleInput);
   };
 
-  const populateMatrixFromRole = (targetRoleInput, customUserPerms = null) => {
+  const populateMatrixFromRole = (targetRoleInput, customUserPerms = null, deniedUserPerms = null) => {
     const targetIdStr = getRoleIdString(targetRoleInput);
     const selectedRole = roles.find((r) => {
       const rId = String(r._id || r.id || '');
@@ -199,16 +199,21 @@ export default function UserWizardModal({
 
     const rolePerms = (selectedRole?.permissions || []).map(normalizePermissionKey);
     const isSuperAdmin = selectedRole?.name === 'Super Admin';
+    const normCustom = (customUserPerms || []).map(normalizePermissionKey);
+    const normDenied = (deniedUserPerms || []).map(normalizePermissionKey);
 
     const newMatrix = {};
     MODULES_CATALOG.forEach((mod) => {
       ACTIONS.forEach((act) => {
         const key = `${mod.id}:${act}`;
-        if (customUserPerms && Array.isArray(customUserPerms) && customUserPerms.length > 0) {
-          const normCustom = customUserPerms.map(normalizePermissionKey);
-          newMatrix[key] = isSuperAdmin || rolePerms.includes(key) || normCustom.includes(key);
+        if (isSuperAdmin) {
+          newMatrix[key] = true;
+        } else if (normDenied.includes(key)) {
+          // Explicitly unselected / revoked from the role for this user
+          newMatrix[key] = false;
         } else {
-          newMatrix[key] = isSuperAdmin || rolePerms.includes(key);
+          // Granted if in base role OR granted as extra permission
+          newMatrix[key] = rolePerms.includes(key) || normCustom.includes(key);
         }
       });
     });
@@ -243,11 +248,14 @@ export default function UserWizardModal({
         setReportingTo(editingUser.reportingTo?._id || editingUser.reportingTo || '');
         setIsActive(editingUser.isActive !== undefined ? editingUser.isActive : true);
 
-        const customPerms = (Array.isArray(editingUser.customPermissions) && editingUser.customPermissions.length > 0)
+        const customPerms = Array.isArray(editingUser.customPermissions)
           ? editingUser.customPermissions
-          : null;
+          : [];
+        const deniedPerms = Array.isArray(editingUser.deniedPermissions)
+          ? editingUser.deniedPermissions
+          : [];
 
-        populateMatrixFromRole(targetRoleInput, customPerms);
+        populateMatrixFromRole(targetRoleInput, customPerms, deniedPerms);
       } else {
         setUsername('');
         setEmail('');
@@ -328,31 +336,38 @@ export default function UserWizardModal({
 
   const handleFormSubmit = () => {
     const selectedPerms = Object.keys(matrix).filter((key) => matrix[key]);
+    const unselectedPerms = Object.keys(matrix).filter((key) => !matrix[key]);
 
     // Find selected role's base permissions
     const selectedRoleObj = roles.find((r) => String(r._id || r.id) === String(roleId) || r.name === roleId);
     const rolePerms = (selectedRoleObj?.permissions || []).map(normalizePermissionKey);
     const isSuperAdmin = selectedRoleObj?.name === 'Super Admin';
 
-    // Store ONLY extra permissions that are NOT already in the base role
+    // Extra permissions = selected by admin, but NOT in base role ("kuch jyada")
     let extraUserPerms = [];
+    // Denied permissions = UNSELECTED by admin, but WAS in base role ("kuch kam")
+    let deniedUserPerms = [];
+
     if (!isSuperAdmin && selectedRoleObj) {
       extraUserPerms = selectedPerms.filter((p) => !rolePerms.includes(p));
+      deniedUserPerms = unselectedPerms.filter((p) => rolePerms.includes(p));
     } else if (!selectedRoleObj) {
       extraUserPerms = selectedPerms;
     }
 
+    const resolvedEmail = (username.includes('@') ? username : email || `${username}@sanmora.com`).trim().toLowerCase();
     const payload = {
-      name: displayName,
-      email: username.includes('@') ? username : email || `${username}@sanmora.com`,
+      name: displayName.trim(),
+      email: resolvedEmail,
       roleId: roleId || (roles[0]?._id || ''),
-      department,
-      designation: department,
+      department: department?.trim() || 'Sales',
+      designation: department?.trim() || 'Executive',
       reportingTo: reportingTo || null,
       isActive,
-      customPermissions: extraUserPerms
+      customPermissions: extraUserPerms,
+      deniedPermissions: deniedUserPerms
     };
-    if (password) payload.password = password;
+    if (password) payload.password = password.trim();
     onSubmit(payload);
   };
 

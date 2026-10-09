@@ -95,7 +95,6 @@ export default function DashboardPage() {
 
   const loadDashboardAllData = useCallback((empList = employees) => {
     if (!user) return;
-    syncCrmStoreWithBackendApi();
     const rawFups  = getStoredFollowups();
     const rawTasks = getStoredTasks();
     const rawLeads = getStoredLeads();

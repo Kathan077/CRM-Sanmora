@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
-import PhoneDetectionGuard from '../../components/common/PhoneDetectionGuard';
 import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
 import ManageFollowUpModal from '../../components/customers/ManageFollowUpModal';
 import TransferLeadModal from '../../components/customers/TransferLeadModal';
@@ -617,10 +616,16 @@ export default function CustomersPage() {
     }));
   }, []);
 
-  const loadData = useCallback((empList = employees) => {
+  const employeesRef = useRef(employees);
+  useEffect(() => {
+    employeesRef.current = employees;
+  }, [employees]);
+
+  const loadData = useCallback((empList = null) => {
     const rawLeads = getStoredLeads();
+    const effectiveEmployees = empList || employeesRef.current || [];
     // Scope customer records according to User Role & Manager Hierarchy
-    const scopedLeads = filterByRole(rawLeads, user, empList);
+    const scopedLeads = filterByRole(rawLeads, user, effectiveEmployees);
 
     // Pre-index normalized search string for ultra-fast matching
     const preparedLeads = scopedLeads.map(c => ({
@@ -640,7 +645,7 @@ export default function CustomersPage() {
 
     setCustomers(preparedLeads);
     setFollowupVersion(prev => prev + 1);
-  }, [user, employees]);
+  }, [user]);
 
   const followupsMap = useMemo(() => {
     const fupList = getStoredFollowups();
@@ -654,11 +659,19 @@ export default function CustomersPage() {
   }, [followupVersion]);
 
   useEffect(() => {
-    syncCrmStoreWithBackendApi();
-    loadData(employees);
+    loadData();
 
+    // Background sync with MongoDB
+    syncCrmStoreWithBackendApi().then(() => {
+      loadData();
+    });
+
+    let debounceTimer = null;
     const handleStoreUpdate = () => {
-      loadData(employees);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        loadData();
+      }, 50);
     };
 
     if (typeof window !== 'undefined') {
@@ -667,14 +680,20 @@ export default function CustomersPage() {
 
     async function loadEmployees() {
       const token = typeof window !== 'undefined'
-        ? (localStorage.getItem('crm_token') || localStorage.getItem('token') || sessionStorage.getItem('crm_token'))
+        ? (sessionStorage.getItem('crm_token') || sessionStorage.getItem('token') || localStorage.getItem('crm_token') || localStorage.getItem('token'))
         : null;
       if (!token) return;
 
       try {
-        const res = await userService.getAllUsers();
+        const res = await userService.getStaffDirectory();
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setEmployees(res.data);
+          setEmployees(prev => {
+            if (prev.length === res.data.length && prev[0]?._id === res.data[0]?._id) {
+              return prev;
+            }
+            return res.data;
+          });
+          employeesRef.current = res.data;
           loadData(res.data);
         }
       } catch (e) {
@@ -684,6 +703,7 @@ export default function CustomersPage() {
     loadEmployees();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('crm_store_updated', handleStoreUpdate);
       }
@@ -818,9 +838,6 @@ export default function CustomersPage() {
       <Header title="Customer Directory" />
 
       <main className={`crm-main-content ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        {/* 🛡️ AI REAL-TIME MOBILE CAMERA DETECTION GUARD */}
-        <PhoneDetectionGuard pageName="Customer Accounts" />
-        
         {/* ══ PAGE ACTION HEADER ════════════════════════════════ */}
         <div className="cp-header-card">
           <div className="cp-hdr-left">

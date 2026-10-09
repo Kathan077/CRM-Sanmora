@@ -1,26 +1,36 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
 
-// In-Memory User Auth Cache (15-second TTL to eliminate redundant DB reads on rapid requests)
+// In-Memory User Auth Cache with Bounded LRU Eviction & 30s TTL
 const userAuthCache = new Map();
-const CACHE_TTL_MS = 15000;
+const CACHE_TTL_MS = 30000;
+const MAX_CACHE_SIZE = 10000;
 
 const getCachedUser = (userId) => {
-  const cached = userAuthCache.get(userId);
+  if (!userId) return null;
+  const key = String(userId);
+  const cached = userAuthCache.get(key);
   if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
     return cached.user;
   }
-  userAuthCache.delete(userId);
+  userAuthCache.delete(key);
   return null;
 };
 
 const setCachedUser = (userId, user) => {
-  userAuthCache.set(userId, { user, timestamp: Date.now() });
+  if (!userId || !user) return;
+  const key = String(userId);
+  // Prevent memory unbounded growth by evicting oldest item if max capacity reached
+  if (userAuthCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = userAuthCache.keys().next().value;
+    if (oldestKey) userAuthCache.delete(oldestKey);
+  }
+  userAuthCache.set(key, { user, timestamp: Date.now() });
 };
 
 // Expose cache invalidator for user updates / status toggles
 const invalidateUserAuthCache = (userId) => {
-  if (userId) userAuthCache.delete(userId.toString());
+  if (userId) userAuthCache.delete(String(userId));
 };
 
 /**
