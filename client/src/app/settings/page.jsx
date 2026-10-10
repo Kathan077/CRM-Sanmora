@@ -62,6 +62,19 @@ export default function SettingsPage() {
         :global(.icon-purple) { color: var(--primary); }
         :global(.icon-blue) { color: var(--secondary); }
         :global(.icon-green) { color: var(--success); }
+        @media (max-width: 1024px) {
+          .crm-main-content {
+            margin-left: 0 !important;
+            margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+            width: 100% !important;
+            padding: 14px 12px !important;
+          }
+          .page-action-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+        }
+        @media (max-width: 640px) {
+          .settings-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+          .settings-card { padding: 18px 14px !important; }
+        }
       `}</style>
     </div>
   );

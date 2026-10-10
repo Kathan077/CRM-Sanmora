@@ -2730,6 +2730,405 @@
   color: #94A3B8 !important;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   ACTIVITY LOGS & LEADERBOARD RESPONSIVE RULES (ALL SCREEN SIZES)
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .crm-main-content,
+  .crm-main-content.collapsed {
+    margin-left: 0 !important;
+    margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 12px 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .activity-logs-container {
+    padding: 12px 10px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 4 KPI Summary Cards: 2x2 grid */
+  .activity-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .lb-hero-banner {
+    padding: 20px 18px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .lb-hero-left {
+    max-width: 100% !important;
+    gap: 14px !important;
+  }
+
+  .lb-hero-title {
+    font-size: 1.35rem !important;
+  }
+
+  .lb-hero-right {
+    width: 100% !important;
+  }
+
+  .lb-month-selector {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .attendance-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .team-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .view-mode-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 6px !important;
+    margin-bottom: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  .view-mode-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .view-tab-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 8px 14px !important;
+    font-size: 0.8rem !important;
+    border-radius: 12px !important;
+  }
+
+  .lb-hero-banner {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+    gap: 12px !important;
+  }
+
+  .lb-hero-left {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .lb-trophy-badge {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 14px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lb-hero-title {
+    font-size: 1.22rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .lb-hero-sub {
+    font-size: 0.76rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .lb-month-selector {
+    flex-wrap: wrap !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    border-radius: 14px !important;
+  }
+
+  .lb-select-input {
+    flex: 1 1 auto !important;
+    min-width: 90px !important;
+  }
+
+  /* Leaderboard Rankings Card */
+  .lb-content-card {
+    padding: 14px 12px !important;
+    border-radius: 18px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .lb-table-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .lb-table-title {
+    font-size: 1.05rem !important;
+  }
+
+  .lb-search-wrap {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .lb-search-wrap input {
+    height: 38px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Table Horizontal Scrolling with Minimum Width */
+  .table-responsive-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+  }
+
+  .lb-table {
+    min-width: 780px !important;
+  }
+
+  .act-table {
+    min-width: 780px !important;
+  }
+
+  /* Tab 2: User Banner */
+  .user-banner-bar {
+    padding: 14px 12px !important;
+    border-radius: 18px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .u-banner-left {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .u-banner-title {
+    font-size: 1.2rem !important;
+  }
+
+  .u-banner-pills-row {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .u-banner-right {
+    width: 100% !important;
+  }
+
+  .select-user-dropdown {
+    width: 100% !important;
+  }
+
+  /* Month Navigation Bar */
+  .month-nav-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .month-title-wrap {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .cal-header-picker-group {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .cal-header-select {
+    flex: 1 !important;
+  }
+
+  .nav-month-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 8px 12px !important;
+  }
+
+  .btn-jump-today {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Calendar Grid on Mobile */
+  .calendar-grid-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    padding-bottom: 4px !important;
+  }
+
+  .calendar-header-days,
+  .calendar-days-grid {
+    min-width: 320px !important;
+  }
+
+  .day-name-hdr {
+    padding: 6px 2px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .cal-day-cell {
+    min-height: 52px !important;
+    padding: 4px !important;
+    border-radius: 8px !important;
+  }
+
+  .cell-date-num {
+    font-size: 0.72rem !important;
+  }
+
+  .att-badge-sm {
+    font-size: 0.58rem !important;
+    padding: 2px 4px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Tab 3: Team Directory Cards */
+  .team-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Tab 4: Logs filter panel */
+  .activity-filter-panel {
+    padding: 14px 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .filter-preset-tabs {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .filter-inputs-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .search-input-wrap,
+  .filter-select-wrap,
+  .date-input-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Modals */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  .target-modal-card,
+  .date-modal-card {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 92vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* KPI Summary Cards on Mobile: 2x2 with compact padding */
+  .activity-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .act-kpi-card {
+    padding: 12px 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .act-kpi-top {
+    margin-bottom: 8px !important;
+  }
+
+  .act-kpi-label {
+    font-size: 0.66rem !important;
+  }
+
+  .act-kpi-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+  }
+
+  .act-kpi-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .act-kpi-value {
+    font-size: 1.3rem !important;
+  }
+
+  .champ-value {
+    font-size: 1rem !important;
+  }
+
+  .act-kpi-sub {
+    font-size: 0.65rem !important;
+    padding: 2px 6px !important;
+    margin-top: 6px !important;
+  }
+
+  /* Attendance stats on mobile */
+  .attendance-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .att-stat-box {
+    padding: 10px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .att-stat-label {
+    font-size: 0.72rem !important;
+  }
+
+  .att-stat-sub {
+    display: none !important;
+  }
+
+  .att-stat-val {
+    font-size: 1.15rem !important;
+  }
+}
+
+
 
 
 

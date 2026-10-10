@@ -148,7 +148,12 @@ export const getStoredFollowups = () => {
     const consolidatedMap = new Map();
 
     cleaned.forEach(item => {
-      const key = item.leadId || item.inquiryNo || (item.customerName && item.phone ? `${item.customerName.toLowerCase().trim()}_${item.phone.trim()}` : item.id);
+      // Prioritize inquiryNo as the primary business key, then leadId, then customerName + phone
+      const key = (item.inquiryNo && String(item.inquiryNo).trim())
+        ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
+        : (item.leadId && String(item.leadId).trim())
+          ? `lead_${String(item.leadId).trim()}`
+          : (item.customerName && item.phone ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}` : `id_${item._id || item.id}`);
 
       if (!consolidatedMap.has(key)) {
         const initialHistory = Array.isArray(item.history) && item.history.length > 0 ? item.history : [{
@@ -181,8 +186,12 @@ export const getStoredFollowups = () => {
         else if (rawNotes.includes('deal cancelled') || rawLeadStatus.includes('cancel')) effectiveLeadStatus = 'Deal Cancelled';
         else if (rawNotes.includes('cold') || rawLeadStatus.includes('cold')) effectiveLeadStatus = 'Cold';
 
+        const finalId = item._id || item.id || (item.leadId ? `fup-${item.leadId}` : `fup-${Date.now()}`);
+
         consolidatedMap.set(key, {
-          id: item.leadId ? `fup-${item.leadId}` : (item.id || `fup-${Date.now()}`),
+          ...item,
+          id: finalId,
+          _id: item._id || (item.id && !String(item.id).startsWith('fup-') ? item.id : undefined),
           leadId: item.leadId || item.id,
           inquiryNo: item.inquiryNo || getNextInquiryNo(),
           customerName: item.customerName || item.contactPerson || 'Unnamed Customer',
@@ -325,15 +334,62 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
 
       const isAdmin = activeUser ? isAdminUser(activeUser) : false;
 
+      // Helper: Deduplicate a follow-up list by business keys (inquiryNo, leadId, customerName+phone)
+      const deduplicateFollowupsList = (list) => {
+        const map = new Map();
+        for (const item of list) {
+          const key = (item.inquiryNo && String(item.inquiryNo).trim())
+            ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
+            : (item.leadId && String(item.leadId).trim())
+              ? `lead_${String(item.leadId).trim()}`
+              : (item.customerName && item.phone)
+                ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}`
+                : `id_${item._id || item.id}`;
+
+          if (!map.has(key)) {
+            map.set(key, { ...item, _id: item._id || item.id, id: item._id || item.id });
+          } else {
+            const existing = map.get(key);
+            // Retain authoritative backend ID if available
+            if (item._id && !existing._id) {
+              existing._id = item._id;
+              existing.id = item._id;
+            }
+            // Merge histories
+            if (Array.isArray(item.history) && item.history.length > 0) {
+              const combined = [...(item.history || []), ...(existing.history || [])];
+              const hMap = new Map();
+              for (const h of combined) {
+                const hKey = h.id || `${h.followupDate}_${h.notes}`;
+                if (!hMap.has(hKey)) hMap.set(hKey, h);
+              }
+              existing.history = Array.from(hMap.values());
+            }
+          }
+        }
+        return Array.from(map.values());
+      };
+
       // 1. Leads / Customer Directory Sync
       if (cRes && cRes.success && Array.isArray(cRes.data)) {
         if (isAdmin) {
           _cachedLeads = cRes.data;
           safeLocalStorageSet(LEADS_KEY, cRes.data);
         } else {
-          // Authoritative backend data + only keep unsynced pending local leads
+          // Reconcile: only keep local leads that truly DO NOT exist in backend data
           const existing = getStoredLeads();
-          const pendingLocalLeads = existing.filter(l => String(l.id || '').startsWith('lead-') && !l._id);
+          const backendLeads = cRes.data;
+          const pendingLocalLeads = existing.filter(l => {
+            const isLocal = String(l.id || '').startsWith('lead-') && !l._id;
+            if (!isLocal) return false;
+            // Check if already represented in backendLeads
+            const inBackend = backendLeads.some(b => 
+              (b._id && (b._id === l._id || b._id === l.id)) ||
+              (b.inquiryNo && l.inquiryNo && b.inquiryNo.trim().toLowerCase() === l.inquiryNo.trim().toLowerCase()) ||
+              (b.phone && l.phone && b.phone.trim() === l.phone.trim())
+            );
+            return !inBackend;
+          });
           const finalLeads = [...cRes.data, ...pendingLocalLeads];
           _cachedLeads = finalLeads;
           safeLocalStorageSet(LEADS_KEY, finalLeads);
@@ -343,13 +399,28 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
       // 2. Followups Sync
       if (fRes && fRes.success && Array.isArray(fRes.data)) {
         if (isAdmin) {
-          _cachedFollowups = fRes.data;
-          safeLocalStorageSet(FOLLOWUPS_KEY, fRes.data);
+          const deduplicated = deduplicateFollowupsList(fRes.data);
+          _cachedFollowups = deduplicated;
+          safeLocalStorageSet(FOLLOWUPS_KEY, deduplicated);
         } else {
-          // Authoritative backend data + only keep unsynced pending local followups
+          // Reconcile: only keep local followups that DO NOT already exist on backend
           const existing = getStoredFollowups();
-          const pendingLocalFups = existing.filter(f => String(f.id || '').startsWith('fup-') && !f._id);
-          const finalFups = [...fRes.data, ...pendingLocalFups];
+          const backendFollowups = fRes.data;
+          const pendingLocalFups = existing.filter(f => {
+            const isLocal = String(f.id || '').startsWith('fup-') && !f._id;
+            if (!isLocal) return false;
+            // Check if already returned by backend
+            const inBackend = backendFollowups.some(b => 
+              (b._id && (b._id === f._id || b._id === f.id)) ||
+              (b.inquiryNo && f.inquiryNo && b.inquiryNo.trim().toLowerCase() === f.inquiryNo.trim().toLowerCase()) ||
+              (b.leadId && f.leadId && b.leadId === f.leadId) ||
+              (b.phone && f.phone && b.phone.trim() === f.phone.trim() &&
+               b.customerName && f.customerName && b.customerName.trim().toLowerCase() === f.customerName.trim().toLowerCase())
+            );
+            return !inBackend;
+          });
+          const combined = [...backendFollowups, ...pendingLocalFups];
+          const finalFups = deduplicateFollowupsList(combined);
           _cachedFollowups = finalFups;
           safeLocalStorageSet(FOLLOWUPS_KEY, finalFups);
         }
@@ -361,9 +432,14 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
           _cachedTasks = tRes.data;
           safeLocalStorageSet(TASKS_KEY, tRes.data);
         } else {
-          // Authoritative backend data + only keep unsynced pending local tasks
           const existing = getStoredTasks();
-          const pendingLocalTasks = existing.filter(t => String(t.id || '').startsWith('task-') && !t._id);
+          const backendTasks = tRes.data;
+          const pendingLocalTasks = existing.filter(t => {
+            const isLocal = String(t.id || '').startsWith('task-') && !t._id;
+            if (!isLocal) return false;
+            const inBackend = backendTasks.some(b => (b._id && (b._id === t._id || b._id === t.id)) || (b.title && t.title && b.title.trim().toLowerCase() === t.title.trim().toLowerCase()));
+            return !inBackend;
+          });
           const finalTasks = [...tRes.data, ...pendingLocalTasks];
           _cachedTasks = finalTasks;
           safeLocalStorageSet(TASKS_KEY, finalTasks);

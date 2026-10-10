@@ -232,16 +232,38 @@
 
 @media (max-width: 768px) {
   .global-announcement-bar {
-    padding: 8px 14px;
-    gap: 10px;
-    min-height: 44px;
+    padding: 6px 12px !important;
+    gap: 8px !important;
+    min-height: 42px !important;
   }
   .announcement-category-badge {
-    font-size: 0.7rem;
-    padding: 4px 10px;
+    font-size: 0.7rem !important;
+    padding: 3px 8px !important;
   }
   .announcement-item-text {
-    font-size: 0.85rem;
+    font-size: 0.82rem !important;
+    padding-right: 28px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .global-announcement-bar {
+    padding: 5px 8px !important;
+    gap: 6px !important;
+    min-height: 38px !important;
+  }
+  .announcement-category-badge {
+    font-size: 0.65rem !important;
+    padding: 2px 6px !important;
+  }
+  .announcement-item-text {
+    font-size: 0.78rem !important;
+    gap: 8px !important;
+    padding-right: 20px !important;
+  }
+  .announcement-publisher-tag {
+    font-size: 0.72rem !important;
+    padding: 2px 8px !important;
   }
 }
 

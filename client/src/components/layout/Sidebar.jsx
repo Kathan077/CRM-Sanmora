@@ -23,12 +23,13 @@ import {
   Sun,
   Moon,
   Activity,
-  Megaphone
+  Megaphone,
+  X
 } from 'lucide-react';
 
 function Sidebar() {
   const pathname = usePathname();
-  const { user, logout, can, sidebarCollapsed, toggleSidebar } = useAuth();
+  const { user, logout, can, sidebarCollapsed, toggleSidebar, mobileSidebarOpen, closeMobileSidebar } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   if (!user) return null;
@@ -102,62 +103,84 @@ function Sidebar() {
   const visibleItems = navItems.filter((item) => item.show);
 
   return (
-    <aside className={`crm-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-brand">
-        {/* Collapsed: only small icon. Expanded: only full logo */}
-        {sidebarCollapsed ? (
-          <div className="brand-logo" onClick={toggleSidebar} title="Click to Toggle Sidebar">
-            <img
-              src="/logo/download.png"
-              alt="Sanmora CRM Logo"
-              style={{ width: '44px', height: '44px', objectFit: 'contain', borderRadius: '8px' }}
-            />
-          </div>
-        ) : (
-          <div className="brand-text" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={toggleSidebar}>
-            <img
-              src="/logo/download.png"
-              alt="Sanmora CRM"
-              style={{ height: '120px', maxWidth: '180px', objectFit: 'contain', borderRadius: '6px' }}
-            />
-          </div>
-        )}
-        <button
-          onClick={toggleSidebar}
-          className="collapse-toggle-btn"
-          title={sidebarCollapsed ? 'Expand Navigation Sidebar' : 'Collapse to Mini Icon Mode'}
-        >
-          {sidebarCollapsed ? <ChevronsRight size={17} /> : <ChevronsLeft size={17} />}
-        </button>
-      </div>
+    <>
+      {/* Mobile Drawer Dark Blur Backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="sidebar-mobile-backdrop active"
+          onClick={closeMobileSidebar}
+          aria-label="Close navigation drawer"
+        />
+      )}
 
-      <div className="sidebar-nav-container">
-        {!sidebarCollapsed && (
-          <div className="nav-section-label">AUTHORIZED MODULES ({visibleItems.length})</div>
-        )}
-        {visibleItems.length === 0 ? (
-          <div className="no-access-msg">No access</div>
-        ) : (
-          visibleItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (pathname === '/leads' && item.href === '/customers');
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`sidebar-link ${isActive ? 'active' : ''}`}
-                title={sidebarCollapsed ? item.label : undefined}
-              >
-                <div className="sidebar-icon-box">
-                  <Icon size={18} />
-                </div>
-                {!sidebarCollapsed && <span className="link-label">{item.label}</span>}
-                {!sidebarCollapsed && isActive && <ChevronRight size={15} className="sidebar-arrow" />}
-              </Link>
-            );
-          })
-        )}
-      </div>
+      <aside className={`crm-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-brand">
+          {/* Collapsed: only small icon. Expanded: only full logo */}
+          {sidebarCollapsed ? (
+            <div className="brand-logo" onClick={toggleSidebar} title="Click to Toggle Sidebar">
+              <img
+                src="/logo/download.png"
+                alt="Sanmora CRM Logo"
+                style={{ width: '44px', height: '44px', objectFit: 'contain', borderRadius: '8px' }}
+              />
+            </div>
+          ) : (
+            <div className="brand-text" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={toggleSidebar}>
+              <img
+                src="/logo/download.png"
+                alt="Sanmora CRM"
+                style={{ height: '120px', maxWidth: '180px', objectFit: 'contain', borderRadius: '6px' }}
+              />
+            </div>
+          )}
+
+          {/* Desktop collapse toggle */}
+          <button
+            onClick={toggleSidebar}
+            className="collapse-toggle-btn desktop-only"
+            title={sidebarCollapsed ? 'Expand Navigation Sidebar' : 'Collapse to Mini Icon Mode'}
+          >
+            {sidebarCollapsed ? <ChevronsRight size={17} /> : <ChevronsLeft size={17} />}
+          </button>
+
+          {/* Mobile drawer close button */}
+          <button
+            onClick={closeMobileSidebar}
+            className="mobile-sidebar-close-btn"
+            title="Close Menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="sidebar-nav-container">
+          {!sidebarCollapsed && (
+            <div className="nav-section-label">AUTHORIZED MODULES ({visibleItems.length})</div>
+          )}
+          {visibleItems.length === 0 ? (
+            <div className="no-access-msg">No access</div>
+          ) : (
+            visibleItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (pathname === '/leads' && item.href === '/customers');
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={closeMobileSidebar}
+                  className={`sidebar-link ${isActive ? 'active' : ''}`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <div className="sidebar-icon-box">
+                    <Icon size={18} />
+                  </div>
+                  {!sidebarCollapsed && <span className="link-label">{item.label}</span>}
+                  {!sidebarCollapsed && isActive && <ChevronRight size={15} className="sidebar-arrow" />}
+                </Link>
+              );
+            })
+          )}
+        </div>
 
       {/* SIDEBAR THEME MODE TOGGLE BUTTON */}
       <div className="sidebar-theme-wrapper">
@@ -197,6 +220,7 @@ function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 

@@ -12,12 +12,26 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
   }, []);
+
+  const toggleMobileSidebar = useCallback(() => {
+    setMobileSidebarOpen((prev) => !prev);
+  }, []);
+
+  const closeMobileSidebar = useCallback(() => {
+    setMobileSidebarOpen(false);
+  }, []);
+
+  // Auto close mobile drawer on navigation
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     let isMounted = true;
@@ -220,8 +234,11 @@ export function AuthProvider({ children }) {
     refreshUser,
     can,
     sidebarCollapsed,
-    toggleSidebar
-  }), [user, loading, login, logout, refreshUser, can, sidebarCollapsed, toggleSidebar]);
+    toggleSidebar,
+    mobileSidebarOpen,
+    toggleMobileSidebar,
+    closeMobileSidebar
+  }), [user, loading, login, logout, refreshUser, can, sidebarCollapsed, toggleSidebar, mobileSidebarOpen, toggleMobileSidebar, closeMobileSidebar]);
 
   return (
     <AuthContext.Provider value={contextValue}>

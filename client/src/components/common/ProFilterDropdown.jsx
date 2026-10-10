@@ -31,15 +31,21 @@ export default function ProFilterDropdown({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
     const estimatedHeight = Math.min(options.length * 40 + 16, 260);
 
     const spaceBelow = viewportHeight - rect.bottom;
     const placement = spaceBelow < estimatedHeight && rect.top > estimatedHeight ? 'top' : 'bottom';
+    const popoverWidth = Math.min(Math.max(rect.width, 180), viewportWidth - 20);
+    let leftPos = rect.left;
+    if (leftPos + popoverWidth > viewportWidth - 10) {
+      leftPos = Math.max(10, viewportWidth - popoverWidth - 10);
+    }
 
     setPopoverPos({
       top: placement === 'top' ? rect.top - estimatedHeight - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: Math.max(rect.width, 180),
+      left: leftPos,
+      width: popoverWidth,
       placement,
       maxHeight: estimatedHeight
     });

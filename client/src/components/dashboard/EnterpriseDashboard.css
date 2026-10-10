@@ -1557,4 +1557,72 @@
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   ENTERPRISE DASHBOARD & CALENDAR WIDGET RESPONSIVE RULES
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .crm-calendar-reference-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    width: 100% !important;
+  }
+
+  .cal-ref-card {
+    border-radius: 18px !important;
+    width: 100% !important;
+  }
+
+  .cal-feed-header-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .cal-fh-right-wrap {
+    width: 100% !important;
+  }
+
+  .cal-feed-filter-tabs {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    padding: 4px !important;
+  }
+
+  .cal-feed-tab-btn {
+    flex-shrink: 0 !important;
+    font-size: 0.78rem !important;
+    padding: 6px 12px !important;
+  }
+
+  .cal-feed-item-card {
+    padding: 14px 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .cfi-top-row {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .ent-top-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .ent-search-box {
+    width: 100% !important;
+  }
+
+  .ent-controls-right {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+}
+
 

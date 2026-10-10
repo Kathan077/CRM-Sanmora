@@ -257,6 +257,9 @@
    3. FILTER & SEARCH CONTROLS BAR
    ───────────────────────────────────────────────────────────── */
 .filter-bar {
+  position: relative !important;
+  z-index: 60 !important;
+  overflow: visible !important;
   padding: 14px 20px;
   display: flex;
   align-items: center;
@@ -313,49 +316,181 @@
   outline: none;
 }
 
-.role-filter-select {
-  position: relative;
-  width: 270px;
-}
-
-.role-filter-select .filter-icon {
+.search-clear-btn {
   position: absolute;
-  left: 16px;
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
+  background: transparent;
+  border: none;
   color: #94A3B8;
-  pointer-events: none;
-  z-index: 2;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  z-index: 3;
 }
 
-.role-filter-select .select-input {
+.search-clear-btn:hover {
+  color: #E11D48;
+  background: #FEF2F2;
+}
+
+.role-filter-select {
+  position: relative !important;
+  z-index: 70 !important;
+  width: 270px;
+  box-sizing: border-box;
+}
+
+.role-select-trigger {
   width: 100%;
-  padding: 12px 16px 12px 44px;
-  cursor: pointer;
+  padding: 12px 14px 12px 16px;
   border-radius: 14px;
   background: #F8FAFC;
   border: 1.5px solid #E2E8F0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  text-align: left;
+  font-family: inherit;
+}
+
+.role-select-trigger:hover {
+  border-color: #CBD5E1;
+  background: #FFFFFF;
+}
+
+.role-select-trigger.active,
+.role-select-trigger:focus {
+  background: #FFFFFF;
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3.5px rgba(124, 58, 237, 0.16);
+  outline: none;
+}
+
+.role-select-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.role-select-left .filter-icon {
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+.role-select-label {
   font-size: 0.9rem;
   font-weight: 600;
   color: #0F172A;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237C3AED' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 40px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
-.role-filter-select .select-input:hover {
-  border-color: #CBD5E1;
-  background-color: #FFFFFF;
+.role-chevron {
+  color: #64748B;
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.role-filter-select .select-input:focus {
-  background-color: #FFFFFF;
-  border-color: #7C3AED;
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.18);
-  outline: none;
+.role-chevron.open {
+  transform: rotate(180deg);
+  color: #7C3AED;
+}
+
+/* Custom Role Dropdown Menu Popup */
+.role-dropdown-menu {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: #FFFFFF !important;
+  border-radius: 16px !important;
+  border: 1.5px solid rgba(124, 58, 237, 0.25) !important;
+  box-shadow: 0 20px 50px -6px rgba(15, 23, 42, 0.25), 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+  max-height: 250px !important;
+  overflow-y: auto !important;
+  z-index: 99999 !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+  animation: dropdownFadeIn 0.18s ease-out !important;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.role-dropdown-menu::-webkit-scrollbar {
+  width: 5px;
+}
+.role-dropdown-menu::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 99px;
+}
+
+.role-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 550;
+  color: #334155;
+  transition: all 0.18s ease;
+  min-width: 0;
+}
+
+.role-dropdown-item:hover {
+  background: #F5F3FF;
+  color: #7C3AED;
+}
+
+.role-dropdown-item.selected {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+  color: #7C3AED;
+  font-weight: 700;
+}
+
+.role-item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.role-check-icon {
+  color: #7C3AED;
+  flex-shrink: 0;
+}
+
+/* Bottom Row inside filter bar (Count badge + View Toggle) */
+.filter-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.filter-count-badge {
+  display: none;
 }
 
 /* --- VIEW MODE TOGGLE SWITCH --- */
@@ -1219,17 +1354,39 @@
   color: #94A3B8 !important;
 }
 
-[data-theme='dark'] .role-filter-select .select-input,
-.dark .role-filter-select .select-input {
-  background-color: rgba(30, 41, 59, 0.9) !important;
+[data-theme='dark'] .role-select-trigger,
+.dark .role-select-trigger {
+  background: rgba(30, 41, 59, 0.9) !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme='dark'] .role-select-label,
+.dark .role-select-label {
   color: #FFFFFF !important;
 }
 
-[data-theme='dark'] .role-filter-select .select-input option,
-.dark .role-filter-select .select-input option {
-  background-color: #0F172A !important;
-  color: #FFFFFF !important;
+[data-theme='dark'] .role-dropdown-menu,
+.dark .role-dropdown-menu {
+  background: #0F172A !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme='dark'] .role-dropdown-item,
+.dark .role-dropdown-item {
+  color: #CBD5E1 !important;
+}
+
+[data-theme='dark'] .role-dropdown-item:hover,
+.dark .role-dropdown-item:hover {
+  background: rgba(124, 58, 237, 0.2) !important;
+  color: #C4B5FD !important;
+}
+
+[data-theme='dark'] .role-dropdown-item.selected,
+.dark .role-dropdown-item.selected {
+  background: rgba(124, 58, 237, 0.3) !important;
+  color: #E0E7FF !important;
 }
 
 [data-theme='dark'] .view-mode-toggle,
@@ -1377,6 +1534,274 @@
   color: #CBD5E1 !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   USER MANAGEMENT RESPONSIVE RULES (ALL SCREEN SIZES)
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .crm-main-content,
+  .crm-main-content.collapsed {
+    margin-left: 0 !important;
+    margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 16px 14px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .user-hero-card,
+  .page-action-header {
+    padding: 22px 20px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    min-height: auto !important;
+  }
+
+  .header-action-buttons {
+    flex-wrap: wrap !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .filter-bar {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  .role-filter-select {
+    width: 220px !important;
+  }
+
+  .table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .custom-table {
+    min-width: 760px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .crm-main-content,
+  .crm-main-content.collapsed {
+    padding: 12px 10px !important;
+    gap: 14px !important;
+  }
+
+  .page-action-header {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+    gap: 14px !important;
+  }
+
+  .header-info h2 {
+    font-size: 1.3rem !important;
+  }
+
+  .header-info p {
+    font-size: 0.82rem !important;
+  }
+
+  .header-action-buttons {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+
+  .header-action-buttons .btn,
+  .header-action-buttons .btn-primary,
+  .header-action-buttons .btn-outline {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 11px 16px !important;
+    font-size: 0.85rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .filter-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    gap: 10px !important;
+  }
+
+  .search-filter-input,
+  .role-filter-select {
+    width: 100% !important;
+  }
+
+  .search-filter-input .form-input {
+    font-size: 0.85rem !important;
+    padding: 10px 14px 10px 42px !important;
+  }
+
+  .role-select-trigger {
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .filter-bottom-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    margin-top: 2px !important;
+  }
+
+  .filter-count-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    font-size: 0.76rem !important;
+    font-weight: 650 !important;
+    color: #64748B !important;
+    background: #F1F5F9 !important;
+    padding: 4px 10px !important;
+    border-radius: 8px !important;
+  }
+
+  [data-theme='dark'] .filter-count-badge,
+  .dark .filter-count-badge {
+    background: rgba(30, 41, 59, 0.9) !important;
+    color: #CBD5E1 !important;
+  }
+
+  .view-mode-toggle {
+    margin: 0 !important;
+  }
+
+  .user-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
+  .ucard-wrapper {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+    gap: 12px !important;
+  }
+
+  .ucard-avatar {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 14px !important;
+  }
+
+  .ucard-avatar-inner {
+    font-size: 1.15rem !important;
+  }
+
+  .ucard-name {
+    font-size: 1.05rem !important;
+  }
+
+  .ucard-designation {
+    font-size: 0.8rem !important;
+  }
+
+  .ucard-footer {
+    padding-top: 10px !important;
+    gap: 6px !important;
+  }
+
+  .ucard-detail-row {
+    font-size: 0.78rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .kpi-card {
+    padding: 14px 16px !important;
+    min-height: auto !important;
+    border-radius: 16px !important;
+    gap: 14px !important;
+  }
+
+  .kpi-icon-wrapper {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+  }
+
+  .kpi-val {
+    font-size: 1.55rem !important;
+  }
+
+  .kpi-lbl {
+    font-size: 0.72rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .crm-main-content,
+  .crm-main-content.collapsed {
+    padding: 10px 8px !important;
+    gap: 12px !important;
+  }
+
+  .page-action-header {
+    padding: 14px 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .header-info h2 {
+    font-size: 1.18rem !important;
+  }
+
+  .header-info p {
+    font-size: 0.78rem !important;
+  }
+
+  .live-badge {
+    font-size: 0.68rem !important;
+    padding: 4px 12px !important;
+  }
+
+  .kpi-card {
+    padding: 12px 14px !important;
+    gap: 12px !important;
+  }
+
+  .kpi-val {
+    font-size: 1.4rem !important;
+  }
+
+  .filter-bar {
+    padding: 10px 12px !important;
+  }
+
+  .ucard-wrapper {
+    padding: 14px 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .ucard-name {
+    font-size: 1rem !important;
+  }
+
+  .ucard-avatar {
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
+
 
 
 

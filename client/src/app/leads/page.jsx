@@ -645,6 +645,20 @@ export default function LeadsPage() {
           margin-top: 24px;
         }
 
+        @media (max-width: 1024px) {
+          .crm-main-content {
+            margin-left: 0 !important;
+            margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+            width: 100% !important;
+            padding: 12px 10px !important;
+            box-sizing: border-box !important;
+          }
+          .page-action-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+        }
         @media (max-width: 1200px) {
           .kanban-board {
             grid-template-columns: repeat(2, 1fr);
@@ -653,6 +667,10 @@ export default function LeadsPage() {
         @media (max-width: 640px) {
           .kanban-board {
             grid-template-columns: 1fr;
+            gap: 14px;
+          }
+          .crm-main-content {
+            padding: 10px 8px !important;
           }
         }
       `}</style>

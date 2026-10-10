@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
@@ -35,7 +35,10 @@ import {
   LogOut,
   Activity,
   AlertCircle,
-  Calendar
+  Calendar,
+  ChevronDown,
+  Check,
+  X
 } from 'lucide-react';
 
 const AVATAR_GRADIENTS = [
@@ -93,6 +96,23 @@ export default function UsersPage() {
   // Users Filters
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target)) {
+        setRoleDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedRoleObj = useMemo(() => {
+    if (!selectedRole) return null;
+    return roles.find(r => String(r._id || r.id || r.name) === String(selectedRole));
+  }, [roles, selectedRole]);
 
   // Activity Logs state
   const [logs, setLogs] = useState([]);
@@ -318,45 +338,95 @@ export default function UsersPage() {
                 <Search size={18} className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Search by employee name, email, or department..."
+                  placeholder="Search employees, email, role..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="form-input"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="search-clear-btn"
+                    title="Clear search text"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </div>
 
-              <div className="role-filter-select">
-                <Filter size={16} className="filter-icon" />
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="form-input select-input"
+              <div className="role-filter-select" ref={roleDropdownRef}>
+                <button
+                  type="button"
+                  className={`role-select-trigger ${roleDropdownOpen ? 'active' : ''}`}
+                  onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                  aria-expanded={roleDropdownOpen}
                 >
-                  <option value="">All Department Roles</option>
-                  {roles.map((r, idx) => (
-                    <option key={r._id || r.id || r.name || `role-opt-${idx}`} value={r._id || r.id || r.name}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+                  <div className="role-select-left">
+                    <Filter size={16} className="filter-icon" />
+                    <span className="role-select-label" title={selectedRoleObj ? selectedRoleObj.name : 'All Department Roles'}>
+                      {selectedRoleObj ? selectedRoleObj.name : 'All Department Roles'}
+                    </span>
+                  </div>
+                  <ChevronDown size={16} className={`role-chevron ${roleDropdownOpen ? 'open' : ''}`} />
+                </button>
+
+                {roleDropdownOpen && (
+                  <div className="role-dropdown-menu">
+                    <div
+                      className={`role-dropdown-item ${!selectedRole ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedRole('');
+                        setRoleDropdownOpen(false);
+                      }}
+                    >
+                      <span>All Department Roles</span>
+                      {!selectedRole && <Check size={14} className="role-check-icon" />}
+                    </div>
+                    {roles.map((r, idx) => {
+                      const val = r._id || r.id || r.name;
+                      const isSelected = String(selectedRole) === String(val);
+                      return (
+                        <div
+                          key={val || `role-opt-${idx}`}
+                          className={`role-dropdown-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedRole(val);
+                            setRoleDropdownOpen(false);
+                          }}
+                        >
+                          <span className="role-item-name" title={r.name}>{r.name}</span>
+                          {isSelected && <Check size={14} className="role-check-icon" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="view-mode-toggle">
-                <button
-                  className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                  onClick={() => setViewMode('grid')}
-                  title="Grid Card View"
-                >
-                  <LayoutGrid size={18} />
-                </button>
-                <button
-                  className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                  onClick={() => setViewMode('table')}
-                  title="Table List View"
-                >
-                  <List size={18} />
-                </button>
+              {/* View Mode Toggle / Responsive Bottom Row */}
+              <div className="filter-bottom-row">
+                <span className="filter-count-badge">
+                  <Users size={13} />
+                  <span>{filteredUsers.length} {filteredUsers.length === 1 ? 'member' : 'members'}</span>
+                </span>
+
+                <div className="view-mode-toggle">
+                  <button
+                    className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                    onClick={() => setViewMode('grid')}
+                    title="Grid Card View"
+                  >
+                    <LayoutGrid size={18} />
+                  </button>
+                  <button
+                    className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                    onClick={() => setViewMode('table')}
+                    title="Table List View"
+                  >
+                    <List size={18} />
+                  </button>
+                </div>
               </div>
             </div>
 

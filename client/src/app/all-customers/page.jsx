@@ -681,6 +681,7 @@ export default function AllCustomersPage() {
                 {/* ADMIN DYNAMIC ACCESS PIN GENERATOR & CONTROLLER (Super Admin Exclusive) */}
                 {isSuperAdmin && (
                   <div
+                    className="ac-admin-pin-bar"
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -752,7 +753,7 @@ export default function AllCustomersPage() {
 
             {/* 4. PRO-LEVEL SECURE TABLE */}
             <div className="ac-table-card" style={{ marginTop: '20px' }}>
-              <div style={{ width: '100%', overflowX: 'auto' }}>
+              <div className="ac-table-responsive" style={{ width: '100%', overflowX: 'auto' }}>
                 <table className="ac-table">
                   <thead>
                     <tr>

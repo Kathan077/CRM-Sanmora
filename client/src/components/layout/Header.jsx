@@ -14,14 +14,14 @@ import { userService } from '../../services/user.service';
 import {
   Search, Bell, ShieldCheck, ChevronsLeft, ChevronsRight,
   Users, RefreshCw, CheckSquare, User, ArrowRight, X, Sparkles, ChevronRight,
-  CheckCircle2, Clock, AlertCircle, Trash2, Check, ExternalLink, Sun, Moon, Music, Megaphone
+  CheckCircle2, Clock, AlertCircle, Trash2, Check, ExternalLink, Sun, Moon, Music, Megaphone, Menu
 } from 'lucide-react';
 import EntranceMusicPlayer from '../common/EntranceMusicPlayer';
 import GlobalAnnouncementBanner from '../common/GlobalAnnouncementBanner';
 import './Header.css';
 
 function Header({ title = 'Dashboard' }) {
-  const { user, sidebarCollapsed, toggleSidebar } = useAuth();
+  const { user, sidebarCollapsed, toggleSidebar, toggleMobileSidebar } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
 
@@ -317,9 +317,20 @@ function Header({ title = 'Dashboard' }) {
       <div className={`crm-header-container ${sidebarCollapsed ? 'collapsed' : ''}`}>
       <header className="crm-header">
         <div className="header-left">
+        {/* Mobile Hamburger Drawer Trigger */}
+        <button
+          onClick={toggleMobileSidebar}
+          className="header-mobile-hamburger-btn"
+          title="Open Navigation Menu"
+          aria-label="Open navigation menu"
+        >
+          <Menu size={20} />
+        </button>
+
+        {/* Desktop Collapse Toggle */}
         <button
           onClick={toggleSidebar}
-          className="header-toggle-btn"
+          className="header-toggle-btn desktop-only"
           title={sidebarCollapsed ? 'Expand Navigation Sidebar' : 'Collapse to Mini Icon Mode'}
         >
           {sidebarCollapsed ? (

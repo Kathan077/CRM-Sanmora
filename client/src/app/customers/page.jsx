@@ -1462,7 +1462,7 @@ export default function CustomersPage() {
           border: 1.5px solid #E2E8F0;
           box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
           position: relative;
-          z-index: 9999;
+          z-index: 25;
           overflow: visible;
         }
 
@@ -2245,13 +2245,221 @@ export default function CustomersPage() {
           color: #FFFFFF;
         }
 
-        @media (max-width: 1100px) {
-          .cp-control-bar {
-            flex-direction: column;
-            align-items: stretch;
+        @media (max-width: 1024px) {
+          .crm-main-content,
+          .crm-main-content.collapsed {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            padding: 12px 10px !important;
+            margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+            box-sizing: border-box !important;
           }
+
+          .cp-header-card {
+            padding: 18px 16px !important;
+            border-radius: 18px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+
+          .cp-hdr-left {
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+
+          .cp-hdr-icon {
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 12px !important;
+          }
+
+          .cp-hdr-title {
+            font-size: 1.45rem !important;
+          }
+
+          .cp-hdr-sub {
+            font-size: 0.8rem !important;
+          }
+
+          .cp-hdr-badge-row {
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            margin-bottom: 4px !important;
+          }
+
+          .cp-hdr-actions {
+            width: 100% !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+          }
+
+          .cp-btn-add {
+            flex: 1 !important;
+            justify-content: center !important;
+            font-size: 0.82rem !important;
+            padding: 10px 14px !important;
+          }
+
+          .cp-control-bar {
+            padding: 12px 14px !important;
+            gap: 10px !important;
+            border-radius: 16px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+
           .cp-search-wrap {
-            max-width: 100%;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          .cp-filter-pills {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            gap: 6px !important;
+            padding-bottom: 2px !important;
+          }
+
+          .cp-filter-pills::-webkit-scrollbar {
+            display: none !important;
+          }
+
+          .cp-filter-pill {
+            padding: 6px 12px !important;
+            font-size: 0.78rem !important;
+            flex-shrink: 0 !important;
+            white-space: nowrap !important;
+          }
+
+          .cp-emp-dropdown-container {
+            width: 100% !important;
+            margin-left: 0 !important;
+          }
+
+          .cp-emp-filter-trigger {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+
+          .cp-grid-container {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+            width: 100% !important;
+          }
+
+          .cp-card {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            height: 325px !important;
+          }
+
+          .cp-card-front,
+          .cp-card-back {
+            padding: 16px 14px !important;
+            border-radius: 18px !important;
+            box-sizing: border-box !important;
+          }
+
+          .cp-card-ftr {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            width: 100% !important;
+            margin-top: auto !important;
+          }
+
+          .cp-card-fup-trigger {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            justify-content: center !important;
+            padding: 8.5px 10px !important;
+            font-size: 0.8rem !important;
+          }
+
+          .cp-card-transfer {
+            flex: 1 1 auto !important;
+            justify-content: center !important;
+            padding: 7px 10px !important;
+            font-size: 0.76rem !important;
+          }
+
+          .cp-card-edit {
+            flex: 1 1 auto !important;
+            justify-content: center !important;
+            padding: 7px 10px !important;
+            font-size: 0.76rem !important;
+          }
+
+          .cp-card-del {
+            width: 36px !important;
+            height: 36px !important;
+            flex-shrink: 0 !important;
+          }
+
+          .cp-table-card {
+            border-radius: 16px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            width: 100% !important;
+          }
+
+          .cp-table {
+            min-width: 760px !important;
+          }
+
+          .cp-bulk-bar-overlay {
+            width: calc(100% - 20px) !important;
+            bottom: 12px !important;
+            left: 10px !important;
+            transform: none !important;
+          }
+
+          .cp-bulk-bar {
+            padding: 10px 14px !important;
+            border-radius: 14px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+
+          .cp-bulk-actions {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .cp-hdr-title {
+            font-size: 1.25rem !important;
+          }
+
+          .cp-hdr-icon {
+            width: 40px !important;
+            height: 40px !important;
+          }
+
+          .cp-badge-pro,
+          .cp-count-pill {
+            font-size: 0.65rem !important;
+            padding: 3px 8px !important;
+          }
+
+          .cp-card-front,
+          .cp-card-back {
+            padding: 14px !important;
+          }
+
+          .cp-card-name {
+            font-size: 0.92rem !important;
           }
         }
       `}</style>

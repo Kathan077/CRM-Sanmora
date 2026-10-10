@@ -514,14 +514,15 @@ export default function LoginPage() {
           to { transform: rotate(360deg); }
         }
 
-
-
-
-
-
-
-
-
+        @media (max-width: 480px) {
+          .login-container {
+            padding: 16px 12px;
+          }
+          .login-glass-card {
+            padding: 28px 20px;
+            border-radius: 20px;
+          }
+        }
       `}</style>
     </main>
   );

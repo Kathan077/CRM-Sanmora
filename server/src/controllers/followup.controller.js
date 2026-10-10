@@ -218,6 +218,39 @@ exports.createFollowup = async (req, res) => {
       }];
     }
 
+    // Idempotency check: if a followup already exists for this inquiryNo or leadId, update it to prevent DB duplicates
+    let existing = null;
+    if (followupData.inquiryNo && String(followupData.inquiryNo).trim()) {
+      existing = await Followup.findOne({ inquiryNo: String(followupData.inquiryNo).trim() });
+    }
+    if (!existing && followupData.leadId && !String(followupData.leadId).startsWith('lead-')) {
+      existing = await Followup.findOne({ leadId: followupData.leadId });
+    }
+
+    if (existing) {
+      if (Array.isArray(followupData.history) && followupData.history.length > 0) {
+        existing.history = [...followupData.history, ...(existing.history || [])];
+      }
+      if (followupData.customerName) existing.customerName = followupData.customerName;
+      if (followupData.phone) existing.phone = followupData.phone;
+      if (followupData.company) existing.company = followupData.company;
+      if (followupData.assignedTo) existing.assignedTo = followupData.assignedTo;
+      if (followupData.assignedToId) existing.assignedToId = followupData.assignedToId;
+      if (followupData.followupDate) existing.followupDate = followupData.followupDate;
+      if (followupData.followupType) existing.followupType = followupData.followupType;
+      if (followupData.nextFollowupDate) existing.nextFollowupDate = followupData.nextFollowupDate;
+      if (followupData.notes) existing.notes = followupData.notes;
+      if (followupData.leadStatus) existing.leadStatus = followupData.leadStatus;
+      if (followupData.status) existing.status = followupData.status;
+
+      await existing.save();
+      const obj = existing.toObject();
+      return res.status(200).json({
+        success: true,
+        data: { ...obj, id: String(obj._id) }
+      });
+    }
+
     const followup = await Followup.create(followupData);
     const obj = followup.toObject();
     const result = { ...obj, id: String(obj._id) };

@@ -2467,3 +2467,272 @@
   color: #F8FAFC !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   ANALYTICS CHARTS & LEADERBOARD RESPONSIVE RULES (ALL SCREEN SIZES)
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .ac-wrap {
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    gap: 14px !important;
+  }
+
+  .ac-card {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  .ac-card-hd {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .ac-tgrp {
+    width: 100% !important;
+    gap: 10px !important;
+  }
+
+  .ac-ctitle {
+    font-size: 1.15rem !important;
+  }
+
+  .ac-csub {
+    font-size: 0.78rem !important;
+  }
+
+  .ac-banner {
+    padding: 16px 14px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .ac-ban-l {
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  .ac-ban-icon {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  .ac-ban-title {
+    font-size: 1.2rem !important;
+  }
+
+  .ac-ban-r {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ac-kchip {
+    flex: 1 !important;
+    min-width: 130px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* Team Summary KPI Grid */
+  .ac-lb-team-summary {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin: 12px 0 14px !important;
+  }
+
+  .ac-team-kpi-item {
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    gap: 8px !important;
+  }
+
+  .ac-team-kpi-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .ac-team-kpi-lbl {
+    font-size: 0.65rem !important;
+  }
+
+  .ac-team-kpi-val {
+    font-size: 0.88rem !important;
+  }
+
+  /* Staff Search & Filter Control Bar */
+  .ac-lb-ctrls-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .ac-lb-search-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .ac-lb-ctrl-group {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .ac-lb-period-pills {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    padding: 4px !important;
+  }
+
+  .ac-lb-period-btn {
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .ac-lb-role-pills {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 4px !important;
+  }
+
+  .ac-lb-emp-select-wrap {
+    width: 100% !important;
+  }
+
+  .ac-lb-emp-select {
+    width: 100% !important;
+    padding: 7px 30px 7px 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .ac-lb-role-btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    font-size: 0.78rem !important;
+    padding: 6px 10px !important;
+  }
+
+  .ac-lb-view-toggle {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  /* Staff Leaderboard Grid & Cards */
+  .ac-staff-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .ac-sc {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 14px 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .ac-sc-header-row {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .ac-sc-header-r {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  .ac-sc-profile-row {
+    gap: 10px !important;
+  }
+
+  .ac-sc-av {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 0.95rem !important;
+  }
+
+  .ac-sc-name {
+    font-size: 0.95rem !important;
+  }
+
+  .ac-sc-role-row {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  .ac-sc-kpi-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 2px !important;
+    padding: 6px 4px !important;
+  }
+
+  .ac-ksi-lbl {
+    font-size: 0.56rem !important;
+  }
+
+  .ac-ksi-val {
+    font-size: 0.82rem !important;
+  }
+
+  /* Table Mode in Leaderboard */
+  .ac-lb-table-wrap,
+  .ac-table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+  }
+
+  .ac-lb-table {
+    min-width: 680px !important;
+  }
+
+  /* Chart Layouts */
+  .ac-charts-row,
+  .ac-double-chart {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .ac-svg-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ac-lb-team-summary {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .ac-ban-title {
+    font-size: 1.1rem !important;
+  }
+
+  .ac-kchip {
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  .ac-sc-kpi-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 4px !important;
+  }
+}

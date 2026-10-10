@@ -552,8 +552,32 @@ export default function FollowupsPage() {
     const effectiveEmployees = empList || employeesRef.current || [];
     // Filter followups according to User Role & Manager Hierarchy
     const scopedData = filterByRole(rawData, user, effectiveEmployees);
+
+    // Defensive Deduplication: Collapse multiple records for the exact same inquiry or lead into 1 unique row
+    const uniqueMap = new Map();
+    for (const item of scopedData) {
+      const key = (item.inquiryNo && String(item.inquiryNo).trim())
+        ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
+        : (item.leadId && String(item.leadId).trim())
+          ? `lead_${String(item.leadId).trim()}`
+          : (item.customerName && item.phone)
+            ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}`
+            : `id_${item._id || item.id}`;
+
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
+      } else {
+        const existing = uniqueMap.get(key);
+        // Prefer the record that has a real MongoDB _id
+        if (item._id && !existing._id) {
+          uniqueMap.set(key, { ...existing, ...item });
+        }
+      }
+    }
+    const deduplicatedList = Array.from(uniqueMap.values());
+
     // Ultra-fast Pre-indexing for 100,000+ items (Single Pass)
-    const indexed = scopedData.map(f => {
+    const indexed = deduplicatedList.map(f => {
       const rawStatus = String(f.status || '').toLowerCase();
       const rawLeadStatus = String(f.leadStatus || '').toLowerCase();
       const rawNotes = String(f.notes || '').toLowerCase();

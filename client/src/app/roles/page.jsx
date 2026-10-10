@@ -2156,6 +2156,459 @@ export default function RolesPage() {
           transform: translateY(-2px);
           box-shadow: 0 14px 30px rgba(99, 102, 241, 0.48);
         }
+
+        /* ══════════════════════════════════════════════════════════════════════
+           ROLES & PRIVILEGES RESPONSIVE RULES (ALL SCREEN SIZES)
+           ══════════════════════════════════════════════════════════════════════ */
+        .loading-box {
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 36px 20px;
+          border-radius: 18px;
+          background: #FFFFFF;
+          border: 1px solid rgba(99, 102, 241, 0.15);
+          font-weight: 500;
+          color: #64748B;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .spin-icon {
+          animation: spin 1.5s linear infinite;
+          color: #6366F1;
+        }
+
+        @media (max-width: 1024px) {
+          .crm-layout {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden !important;
+          }
+
+          .crm-main-content,
+          .crm-main-content.collapsed {
+            margin-left: 0 !important;
+            margin-top: calc(58px + var(--announcement-height, 0px) + 6px) !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            padding: 16px 14px !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+          }
+
+          .ultra-hero {
+            padding: 22px 20px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 16px !important;
+            min-height: auto !important;
+          }
+
+          .header-action-buttons {
+            flex-wrap: wrap !important;
+          }
+
+          .kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 14px !important;
+          }
+
+          .roles-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 14px !important;
+          }
+
+          .table-responsive {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+
+          .matrix-table {
+            min-width: 720px !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .crm-main-content,
+          .crm-main-content.collapsed {
+            padding: 12px 10px !important;
+            gap: 14px !important;
+          }
+
+          .ultra-hero {
+            padding: 16px 14px !important;
+            border-radius: 18px !important;
+            gap: 14px !important;
+          }
+
+          .hero-title-text {
+            font-size: 1.3rem !important;
+          }
+
+          .hero-desc {
+            font-size: 0.82rem !important;
+            max-width: 100% !important;
+          }
+
+          .header-action-buttons {
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 8px !important;
+            align-items: stretch !important;
+          }
+
+          .ultra-create-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+            padding: 11px 16px !important;
+            font-size: 0.88rem !important;
+            box-sizing: border-box !important;
+          }
+
+          .role-tabs-bar {
+            flex-direction: column !important;
+            width: 100% !important;
+            padding: 6px !important;
+            gap: 6px !important;
+            border-radius: 16px !important;
+          }
+
+          .tab-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 10px 14px !important;
+            font-size: 0.84rem !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
+          }
+
+          .roles-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+
+          .role-card {
+            padding: 16px 14px !important;
+            border-radius: 18px !important;
+            gap: 12px !important;
+          }
+
+          .role-card-header {
+            gap: 10px !important;
+            flex-wrap: wrap !important;
+          }
+
+          .role-title-wrap {
+            gap: 10px !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+
+          .role-badge-icon {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 11px !important;
+          }
+
+          .role-name {
+            font-size: 1.05rem !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+          }
+
+          .role-actions {
+            gap: 6px !important;
+          }
+
+          .role-desc {
+            font-size: 0.82rem !important;
+          }
+
+          .perms-tags-wrap {
+            gap: 6px !important;
+          }
+
+          .badge {
+            font-size: 0.68rem !important;
+            padding: 4px 8px !important;
+          }
+
+          /* Tab 2 Matrix comparison */
+          .matrix-table-container {
+            padding: 14px 12px !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+
+          .table-header-info h3 {
+            font-size: 1.15rem !important;
+          }
+
+          .table-header-info p {
+            font-size: 0.78rem !important;
+          }
+
+          .matrix-table {
+            min-width: 650px !important;
+          }
+
+          .matrix-table th,
+          .matrix-table td {
+            padding: 10px 10px !important;
+          }
+
+          .th-module {
+            min-width: 160px !important;
+          }
+
+          .th-perm {
+            min-width: 130px !important;
+          }
+
+          .th-role {
+            min-width: 95px !important;
+          }
+
+          /* Modal Bottom-Sheet for Roles */
+          .modal-backdrop {
+            padding: 0 !important;
+            align-items: flex-end !important;
+          }
+
+          .modal-card,
+          .role-modal-card {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            max-height: 94vh !important;
+            border-radius: 20px 20px 0 0 !important;
+            padding: 16px 14px !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+          }
+
+          .modal-header {
+            padding-bottom: 12px !important;
+            margin-bottom: 14px !important;
+          }
+
+          .modal-title-wrap {
+            gap: 10px !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+
+          .modal-icon-badge {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 12px !important;
+          }
+
+          .modal-title-wrap h3 {
+            font-size: 1.15rem !important;
+          }
+
+          .modal-subtitle {
+            font-size: 0.78rem !important;
+          }
+
+          .modal-form {
+            gap: 16px !important;
+          }
+
+          .form-grid-2 {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+
+          .custom-input {
+            padding: 11px 14px !important;
+            font-size: 0.88rem !important;
+          }
+
+          .perms-matrix-box {
+            padding: 14px 12px !important;
+            border-radius: 16px !important;
+          }
+
+          .matrix-title {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+            padding-bottom: 10px !important;
+          }
+
+          .m-title-left {
+            font-size: 0.9rem !important;
+          }
+
+          .matrix-title-right {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+
+          .preset-btn-group {
+            width: 100% !important;
+            justify-content: space-between !important;
+            display: flex !important;
+          }
+
+          .preset-btn {
+            flex: 1 !important;
+            text-align: center !important;
+            padding: 6px 4px !important;
+            font-size: 0.7rem !important;
+          }
+
+          .selected-count-badge {
+            width: 100% !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
+            padding: 5px 10px !important;
+            font-size: 0.75rem !important;
+          }
+
+          .perm-groups-list {
+            max-height: 42vh !important;
+            padding-right: 2px !important;
+            gap: 14px !important;
+          }
+
+          .group-matrix-row {
+            padding: 12px 10px !important;
+            border-radius: 14px !important;
+          }
+
+          .group-row-header {
+            gap: 8px !important;
+            margin-bottom: 10px !important;
+          }
+
+          .group-name {
+            font-size: 0.9rem !important;
+          }
+
+          .checkbox-grid {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+          }
+
+          .perm-card-check {
+            padding: 10px 10px !important;
+            gap: 10px !important;
+          }
+
+          .p-title {
+            font-size: 0.82rem !important;
+          }
+
+          .modal-footer {
+            flex-direction: column !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+
+          .modal-footer .btn,
+          .btn-save {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+            padding: 11px 16px !important;
+            box-sizing: border-box !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .kpi-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .kpi-card {
+            padding: 14px 16px !important;
+            min-height: auto !important;
+            border-radius: 16px !important;
+            gap: 14px !important;
+          }
+
+          .kpi-icon-wrapper {
+            width: 44px !important;
+            height: 44px !important;
+            border-radius: 12px !important;
+          }
+
+          .kpi-val {
+            font-size: 1.55rem !important;
+          }
+
+          .kpi-lbl {
+            font-size: 0.72rem !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .crm-main-content,
+          .crm-main-content.collapsed {
+            padding: 10px 8px !important;
+            gap: 12px !important;
+          }
+
+          .ultra-hero {
+            padding: 14px 12px !important;
+            border-radius: 16px !important;
+          }
+
+          .hero-title-text {
+            font-size: 1.18rem !important;
+          }
+
+          .hero-desc {
+            font-size: 0.78rem !important;
+          }
+
+          .ultra-live-badge {
+            font-size: 0.68rem !important;
+            padding: 4px 12px !important;
+          }
+
+          .kpi-card {
+            padding: 12px 14px !important;
+            gap: 12px !important;
+          }
+
+          .kpi-val {
+            font-size: 1.4rem !important;
+          }
+
+          .role-card {
+            padding: 14px 12px !important;
+            border-radius: 16px !important;
+          }
+
+          .role-name {
+            font-size: 1rem !important;
+          }
+
+          .modal-card,
+          .role-modal-card {
+            padding: 14px 12px !important;
+          }
+
+          .modal-title-wrap h3 {
+            font-size: 1.05rem !important;
+          }
+        }
       `}</style>
     </div>
   );
