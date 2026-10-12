@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { customerService } from '../../services/customer.service';
 import { apiRequest } from '../../services/api';
 import './all-customers.css';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import {
   ShieldAlert,
   Users,
@@ -66,7 +67,7 @@ const getStatusConfig = (statusStr) => {
   if (st.includes('hot')) return { label: 'HOT', cls: 'hot', icon: TrendingUp };
   if (st.includes('warm')) return { label: 'WARM', cls: 'warm', icon: Flame };
   if (st.includes('prospect')) return { label: 'PROSPECT', cls: 'prospect', icon: Target };
-  if (st.includes('convert') || st.includes('won') || st.includes('closed')) return { label: 'CONVERTED', cls: 'converted', icon: CheckCircle };
+  if (st.includes('deal') || st.includes('done') || st.includes('convert') || st.includes('won') || st.includes('closed')) return { label: 'DEAL DONE', cls: 'converted', icon: CheckCircle };
   return { label: 'COLD', cls: 'cold', icon: Snowflake };
 };
 
@@ -96,6 +97,7 @@ export default function AllCustomersPage() {
   const [adminAccessPin, setAdminAccessPin] = useState('849201');
   const [showAdminPinText, setShowAdminPinText] = useState(false);
   const [showViewPinModal, setShowViewPinModal] = useState(false);
+  useBodyScrollLock(Boolean(selectedCustomer || showUnlockModal || showViewPinModal));
   const [targetCustomerForView, setTargetCustomerForView] = useState(null);
   const [enteredViewPin, setEnteredViewPin] = useState('');
   const [viewPinError, setViewPinError] = useState('');

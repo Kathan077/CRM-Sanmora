@@ -9,17 +9,22 @@ import {
   getStoredLedgerAccounts,
   saveLedgerAccount,
   deleteLedgerTransaction,
-  calculateRunningBalanceEntries
+  calculateRunningBalanceEntries,
+  saveLead,
+  getDealRevenueSplit
 } from '../../utils/crmStore';
+import { userService } from '../../services/user.service';
+import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
 import SelectWithOther from '../../components/common/SelectWithOther';
 import {
   Wallet, Plus, Trash2, Printer, Search, Pencil,
   CheckCircle2, AlertCircle, Clock, TrendingUp,
   FileText, ArrowDownLeft, ArrowUpRight, MessageSquare,
   Calendar, ShieldCheck, User, Sparkles, X, ChevronRight,
-  Phone, Mail, Building2, Pin, CreditCard
+  Phone, Mail, Building2, Pin, CreditCard, Users, ArrowRightLeft
 } from 'lucide-react';
 import './ledger.css';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 export default function LedgerPage() {
   const { user, can, sidebarCollapsed } = useAuth();
@@ -35,6 +40,9 @@ export default function LedgerPage() {
 
   // Modal states
   const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showAddDealDoneModal, setShowAddDealDoneModal] = useState(false);
+  useBodyScrollLock(Boolean(showRecordModal || showAddDealDoneModal));
+  const [employees, setEmployees]               = useState([]);
   const [isEditMode, setIsEditMode]             = useState(false);
   const [validationError, setValidationError]   = useState('');
   const [modalProjectName, setModalProjectName] = useState('Project Development');
@@ -78,15 +86,21 @@ export default function LedgerPage() {
       return isDealDone;
     });
 
-    const clientList = dealDoneLeads.map(l => ({
-      id: l.id,
-      name: l.customerName || l.contactPerson || 'Unnamed Client',
-      phone: l.phone || l.primaryContact || '—',
-      email: l.email || `${(l.customerName || 'client').toLowerCase().replace(/\s+/g, '')}@gmail.com`,
-      company: l.company || l.companyName || 'Corporate Client',
-      city: l.city || 'Ahmedabad',
-      leadStatus: l.leadStatus || l.status || 'Deal Done'
-    }));
+    const clientList = dealDoneLeads.map(l => {
+      const splitInfo = getDealRevenueSplit(l, (store[l.id] && store[l.id].agreedProjectCost) || l.leadValue || 0);
+      return {
+        id: l.id,
+        name: l.customerName || l.contactPerson || 'Unnamed Client',
+        phone: l.phone || l.primaryContact || '—',
+        email: l.email || `${(l.customerName || 'client').toLowerCase().replace(/\s+/g, '')}@gmail.com`,
+        company: l.company || l.companyName || 'Corporate Client',
+        city: l.city || 'Ahmedabad',
+        leadStatus: l.leadStatus || l.status || 'Deal Done',
+        rawLead: l,
+        isSplitDeal: splitInfo.isSplit,
+        splitInfo: splitInfo
+      };
+    });
 
     setClients(clientList);
     setLedgerStore(store);
@@ -106,7 +120,62 @@ export default function LedgerPage() {
   useEffect(() => {
     setMounted(true);
     refreshData();
+
+    async function loadStaff() {
+      try {
+        const res = await userService.getStaffDirectory();
+        if (res && res.success) {
+          setEmployees(res.data || []);
+        }
+      } catch (err) {}
+    }
+    loadStaff();
   }, [refreshData]);
+
+  // ── DEEP LINK NOTIFICATION & SPECIFIC CLIENT KHATA REDIRECT HANDLER ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const clientId = params.get('clientId') || params.get('id');
+        const customerParam = params.get('customer') || params.get('search');
+
+        if (clientId || customerParam) {
+          let target = null;
+          if (clientId) {
+            target = clients.find(c => String(c.id) === String(clientId));
+          }
+          if (!target && customerParam) {
+            const sLower = customerParam.toLowerCase().trim();
+            target = clients.find(c => 
+              (c.name && c.name.toLowerCase().includes(sLower)) ||
+              (c.company && c.company.toLowerCase().includes(sLower))
+            );
+          }
+
+          if (target) {
+            setSelectedClientId(target.id);
+            setSearch('');
+            if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error handling ledger deep-link:', err);
+      }
+    };
+
+    handleDeepLink();
+
+    const handleDeepLinkEvent = () => {
+      setTimeout(handleDeepLink, 50);
+    };
+    window.addEventListener('crm-deep-link', handleDeepLinkEvent);
+    return () => window.removeEventListener('crm-deep-link', handleDeepLinkEvent);
+  }, [clients]);
 
   // ⚡ OPTIMIZATION 1: High-speed Single-Pass Client Calculations Cache Map
   const clientCalcMap = useMemo(() => {
@@ -161,6 +230,14 @@ export default function LedgerPage() {
       selectedAccount.instalments || []
     );
   }, [selectedClient, selectedAccount, clientCalcMap]);
+
+  // ── 50/50 SHARED DEAL REVENUE SPLIT CALCULATION ──
+  const dealSplit = useMemo(() => {
+    if (!selectedClient) return { isSplit: false };
+    const raw = selectedClient.rawLead || (getStoredLeads().find(l => l.id === selectedClient.id || l._id === selectedClient.id));
+    const totalAmt = currentCalc.totalAgreed || (selectedAccount && selectedAccount.agreedProjectCost) || 0;
+    return getDealRevenueSplit(raw, totalAmt);
+  }, [selectedClient, currentCalc.totalAgreed, selectedAccount]);
 
   // ⚡ OPTIMIZATION 3: Fast $O(N)$ System-Wide Overview Totals
   const systemTotals = useMemo(() => {
@@ -348,6 +425,26 @@ export default function LedgerPage() {
 
   const modalTotalPending = Math.max(0, modalTotalPlan - modalTotalCollected);
 
+  const handleCreateDealDoneCustomer = useCallback((payload) => {
+    const saved = saveLead({
+      ...payload,
+      status: 'Deal Done',
+      leadStatus: 'Deal Done'
+    }, user);
+
+    if (saved && saved.id) {
+      saveLedgerAccount(saved.id, {
+        projectName: saved.company || saved.customerName ? `${saved.company || saved.customerName} Project` : 'Project Development',
+        agreedProjectCost: 0,
+        contractDate: new Date().toISOString().split('T')[0],
+        instalments: []
+      });
+      setSelectedClientId(saved.id);
+    }
+    refreshData();
+    setShowAddDealDoneModal(false);
+  }, [user, refreshData]);
+
   return (
     <div className="crm-layout">
       <Sidebar />
@@ -369,7 +466,7 @@ export default function LedgerPage() {
             </div>
 
             <div className="ledger-hero-actions">
-              <button onClick={() => handleOpenRecordModal(selectedClient)} className="btn-record-main">
+              <button onClick={() => setShowAddDealDoneModal(true)} className="btn-record-main">
                 <Plus size={16} /> Record Payment / Bill
               </button>
             </div>
@@ -482,11 +579,16 @@ export default function LedgerPage() {
                           className={`client-card-item ${isSelected ? 'selected' : ''}`}
                         >
                           <div className="client-item-left">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                               <span className="client-item-name">{c.name}</span>
                               <span style={{ fontSize: '0.65rem', fontWeight: 800, background: '#DCFCE7', color: '#16A34A', padding: '1px 6px', borderRadius: '999px' }}>
                                 Deal Done
                               </span>
+                              {c.isSplitDeal && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 800, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: '999px', border: '1px solid #C7D2FE' }}>
+                                  50/50 Split
+                                </span>
+                              )}
                             </div>
                             <span className="client-item-sub">{c.company || 'Client Account'}</span>
                             <span className="client-item-phone">{c.phone}</span>
@@ -579,12 +681,55 @@ export default function LedgerPage() {
                       <button onClick={handleWhatsAppShare} className="btn-act-whatsapp">
                         <MessageSquare size={14} /> WhatsApp
                       </button>
-
-                      <button onClick={() => handleOpenRecordModal(selectedClient)} className="btn-act-add-entry">
-                        <Plus size={14} /> Add Entry
-                      </button>
                     </div>
                   </div>
+
+                  {/* 50/50 DEAL REVENUE SPLIT BANNER FOR TRANSFERRED LEADS */}
+                  {dealSplit && dealSplit.isSplit && (
+                    <div className="ledger-split-banner">
+                      <div className="split-banner-left">
+                        <div className="split-header-row">
+                          <span className="split-badge-pill">
+                            <Users size={13} /> 50/50 REVENUE SPLIT ATTRIBUTION
+                          </span>
+                          <span className="split-deal-val">
+                            Total Deal Won: <strong>₹{dealSplit.totalAmount.toLocaleString('en-IN')}</strong>
+                          </span>
+                        </div>
+                        <p className="split-explainer-txt">
+                          Lead transferred from <strong>{dealSplit.person1.name}</strong> to <strong>{dealSplit.person2.name}</strong>. Deal won revenue of ₹{dealSplit.totalAmount.toLocaleString('en-IN')} is divided equally (50% each):
+                        </p>
+                      </div>
+
+                      <div className="split-cards-row">
+                        <div className="split-person-card p1-card">
+                          <div className="split-p-avatar">{dealSplit.person1.name.charAt(0).toUpperCase()}</div>
+                          <div className="split-p-info">
+                            <span className="split-p-role">Original Rep (50%)</span>
+                            <span className="split-p-name">{dealSplit.person1.name}</span>
+                          </div>
+                          <div className="split-p-amount">
+                            ₹{dealSplit.person1.amount.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+
+                        <div className="split-equal-icon">
+                          <ArrowRightLeft size={16} />
+                        </div>
+
+                        <div className="split-person-card p2-card">
+                          <div className="split-p-avatar">{dealSplit.person2.name.charAt(0).toUpperCase()}</div>
+                          <div className="split-p-info">
+                            <span className="split-p-role">Closing Rep (50%)</span>
+                            <span className="split-p-name">{dealSplit.person2.name}</span>
+                          </div>
+                          <div className="split-p-amount">
+                            ₹{dealSplit.person2.amount.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 3 CLIENT METRIC BOXES ROW */}
                   <div className="client-boxes-row">
@@ -629,7 +774,7 @@ export default function LedgerPage() {
                         <p className="banner-sub">Chronological log of contract bills, payments received & running balances</p>
                       </div>
 
-                      <div className="banner-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <div className="banner-header-right">
                         <span className="banner-summary-pill paid">
                            Paid: ₹{currentCalc.totalClearedPaid.toLocaleString('en-IN')}
                         </span>
@@ -662,11 +807,11 @@ export default function LedgerPage() {
                             <tr>
                               <th style={{ width: '15%', textAlign: 'left' }}>DATE & TIME</th>
                               <th style={{ width: '25%', textAlign: 'left' }}>ENTRY TITLE / INSTALMENT</th>
-                              <th style={{ width: '14%', textAlign: 'center' }}>TOTAL DEBIT (AGREED)</th>
-                              <th style={{ width: '16%', textAlign: 'center' }}>AMOUNT PAID</th>
-                              <th style={{ width: '13%', textAlign: 'center' }}>METHOD & REF</th>
-                              <th style={{ width: '17%', textAlign: 'center' }}>REMAINING BALANCE</th>
-                              <th style={{ width: '6%', textAlign: 'center' }}>ACTIONS</th>
+                              <th style={{ width: '13%', textAlign: 'center' }}>TOTAL DEBIT (AGREED)</th>
+                              <th style={{ width: '15%', textAlign: 'center' }}>AMOUNT PAID</th>
+                              <th style={{ width: '14%', textAlign: 'center' }}>METHOD & REF</th>
+                              <th style={{ width: '14%', textAlign: 'center' }}>REMAINING BALANCE</th>
+                              <th style={{ width: '4%', textAlign: 'center' }}>ACTIONS</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -682,8 +827,8 @@ export default function LedgerPage() {
                                   </div>
                                 </td>
                                 <td style={{ textAlign: 'left' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', justifyContent: 'center' }}>
-                                    <span className="contract-name" style={{ fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                  <div className="cell-align-start" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                                    <span className="contract-name" style={{ fontWeight: 800 }}>
                                       {selectedAccount.projectName || 'Project Development'}
                                     </span>
 
@@ -1052,6 +1197,16 @@ export default function LedgerPage() {
           </div>
         </div>
       )}
+
+      {/* DEAL DONE CLIENT CREATION MODAL */}
+      <LeadCustomerModal
+        isOpen={showAddDealDoneModal}
+        onClose={() => setShowAddDealDoneModal(false)}
+        onSubmit={handleCreateDealDoneCustomer}
+        employees={employees.length > 0 ? employees : (user ? [user] : [])}
+        currentUser={user}
+        isDealDoneMode={true}
+      />
     </div>
   );
 }

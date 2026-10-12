@@ -104,6 +104,22 @@ const customerSchema = new mongoose.Schema(
     assignedUntilDate: {
       type: String,
       default: ''
+    },
+    isTransferredLead: {
+      type: Boolean,
+      default: false
+    },
+    transferredFrom: {
+      type: String,
+      default: ''
+    },
+    transferredFromId: {
+      type: String,
+      default: ''
+    },
+    transferSplit: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     }
   },
   {

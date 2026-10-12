@@ -378,6 +378,16 @@ exports.transferCustomer = async (req, res) => {
     customer.createdById = String(targetEmployeeId);
     customer.originalAssignerName = targetEmployeeName;
     customer.originalAssignerId = String(targetEmployeeId);
+    customer.isTransferredLead = true;
+    customer.transferredFrom = senderName;
+    customer.transferredFromId = senderId;
+    customer.transferSplit = {
+      person1Id: senderId,
+      person1Name: senderName,
+      person2Id: String(targetEmployeeId),
+      person2Name: targetEmployeeName,
+      splitPct: 50
+    };
 
     await customer.save();
 
@@ -413,7 +423,17 @@ exports.transferCustomer = async (req, res) => {
                 createdBy: targetEmployeeName,
                 createdById: String(targetEmployeeId),
                 originalAssignerName: targetEmployeeName,
-                originalAssignerId: String(targetEmployeeId)
+                originalAssignerId: String(targetEmployeeId),
+                isTransferredLead: true,
+                transferredFrom: senderName,
+                transferredFromId: senderId,
+                transferSplit: {
+                  person1Id: senderId,
+                  person1Name: senderName,
+                  person2Id: String(targetEmployeeId),
+                  person2Name: targetEmployeeName,
+                  splitPct: 50
+                }
               },
               $push: { history: historyItem }
             }
@@ -497,7 +517,17 @@ exports.bulkTransferCustomers = async (req, res) => {
         createdBy: targetEmployeeName,
         createdById: String(targetEmployeeId),
         originalAssignerName: targetEmployeeName,
-        originalAssignerId: String(targetEmployeeId)
+        originalAssignerId: String(targetEmployeeId),
+        isTransferredLead: true,
+        transferredFrom: senderName,
+        transferredFromId: senderId,
+        transferSplit: {
+          person1Id: senderId,
+          person1Name: senderName,
+          person2Id: String(targetEmployeeId),
+          person2Name: targetEmployeeName,
+          splitPct: 50
+        }
       }
     });
 
@@ -535,7 +565,17 @@ exports.bulkTransferCustomers = async (req, res) => {
                 createdBy: targetEmployeeName,
                 createdById: String(targetEmployeeId),
                 originalAssignerName: targetEmployeeName,
-                originalAssignerId: String(targetEmployeeId)
+                originalAssignerId: String(targetEmployeeId),
+                isTransferredLead: true,
+                transferredFrom: senderName,
+                transferredFromId: senderId,
+                transferSplit: {
+                  person1Id: senderId,
+                  person1Name: senderName,
+                  person2Id: String(targetEmployeeId),
+                  person2Name: targetEmployeeName,
+                  splitPct: 50
+                }
               },
               $push: { history: historyItem }
             }

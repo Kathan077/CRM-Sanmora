@@ -8,9 +8,10 @@ import {
   Plus, RotateCcw, Save, ShieldCheck, Tag, FileText, ArrowRight, UserCheck,
   ChevronDown, Check, Flame, Zap, Lightbulb, Snowflake, XCircle
 } from 'lucide-react';
-import { getCustomerFollowupHistory, addCustomerFollowup } from '../../utils/crmStore';
+import { getCustomerFollowupHistory, addCustomerFollowup, resolveEffectiveAssignee } from '../../utils/crmStore';
 import { userService } from '../../services/user.service';
 import SelectWithOther from '../common/SelectWithOther';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import './ManageFollowUpModal.css';
 
 export default function ManageFollowUpModal({
@@ -24,6 +25,8 @@ export default function ManageFollowUpModal({
 }) {
   const [mounted, setMounted] = useState(false);
   const [staff, setStaff] = useState(employees);
+
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     setMounted(true);
@@ -52,7 +55,13 @@ export default function ManageFollowUpModal({
     fetchStaff();
   }, [isOpen]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
 
   const targetCustomer = customer || followup || {};
   const customerName = targetCustomer.customerName || targetCustomer.contactPerson || targetCustomer.name || 'Unnamed Client';
@@ -118,19 +127,21 @@ export default function ManageFollowUpModal({
       );
       setHistory(historyRecords);
 
-      const existingAssignedId = targetCustomer.assignedToId || followup?.assignedToId || defaultAssignedId;
-      const existingAssignedName = targetCustomer.assignedTo || followup?.assignedTo || defaultAssignedName;
+      const eff = resolveEffectiveAssignee(followup || targetCustomer, todayStr);
+      const existingAssignedId = eff.assignedToId || targetCustomer.assignedToId || followup?.assignedToId || defaultAssignedId;
+      const existingAssignedName = eff.assignedTo || targetCustomer.assignedTo || followup?.assignedTo || defaultAssignedName;
+      const existingUntilDate = eff.isExpired ? '' : (followup?.assignedUntilDate || targetCustomer?.assignedUntilDate || '');
 
       setForm({
         followupType: followup?.followupType || 'Telephonic',
         followupDate: todayStr,
         notes: '',
-        nextFollowupDate: followup?.nextFollowupDate && followup.nextFollowupDate !== '—' ? followup.nextFollowupDate : todayStr,
+        nextFollowupDate: followup?.nextFollowupDate && followup.nextFollowupDate !== '—' && followup.nextFollowupDate >= todayStr ? followup.nextFollowupDate : todayStr,
         preferredTime: followup?.preferredTime || '14:00',
         leadStatus: targetCustomer.status || targetCustomer.leadStatus || 'In-Process',
         assignedToId: existingAssignedId,
         assignedTo: existingAssignedName,
-        assignedUntilDate: followup?.assignedUntilDate || targetCustomer?.assignedUntilDate || ''
+        assignedUntilDate: existingUntilDate
       });
       setErrorMsg('');
     }
@@ -174,6 +185,11 @@ export default function ManageFollowUpModal({
     const assignedUsername = assignedEmp ? (assignedEmp.username || '') : '';
 
     const isColdOrClosed = form.leadStatus === 'Cold' || form.leadStatus === 'Deal Cancelled' || form.leadStatus === 'Deal Done' || form.leadStatus === 'Closed';
+
+    if (!isColdOrClosed && form.nextFollowupDate && form.nextFollowupDate < todayStr) {
+      setErrorMsg('Next follow-up date cannot be in the past. Please select today or a future date.');
+      return;
+    }
 
     const payload = {
       leadId: targetCustomer.id || targetCustomer.leadId || `lead-${Date.now()}`,
@@ -354,8 +370,12 @@ export default function ManageFollowUpModal({
                       <input
                         type="date"
                         required
+                        min={todayStr}
                         value={form.nextFollowupDate}
-                        onChange={(e) => setForm({ ...form, nextFollowupDate: e.target.value })}
+                        onChange={(e) => {
+                          setForm({ ...form, nextFollowupDate: e.target.value });
+                          if (errorMsg) setErrorMsg('');
+                        }}
                         className="mfu-input"
                       />
                     </div>
@@ -492,11 +512,19 @@ export default function ManageFollowUpModal({
                 <div className="mfu-cc-info">
                   <h4 className="mfu-cc-name">{customerName}</h4>
                   <div className="mfu-cc-meta">
-                    <Building2 size={12} />
-                    <span>{company}</span>
-                    <span className="mfu-cc-sep">•</span>
-                    <Phone size={12} />
-                    <span className="mfu-mono">{phone}</span>
+                    {company ? (
+                      <>
+                        <span className="mfu-cc-company-wrap">
+                          <Building2 size={13} className="mfu-cc-company-ico" />
+                          <span className="mfu-cc-company-name">{company}</span>
+                        </span>
+                        <span className="mfu-cc-sep">•</span>
+                      </>
+                    ) : null}
+                    <span className="mfu-cc-phone-wrap">
+                      <Phone size={13} className="mfu-cc-phone-ico" />
+                      <span className="mfu-mono">{phone}</span>
+                    </span>
                   </div>
                 </div>
               </div>

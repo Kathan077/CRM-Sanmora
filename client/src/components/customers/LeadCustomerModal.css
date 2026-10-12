@@ -65,7 +65,9 @@
   justify-content: center;
   padding: 20px;
   font-family: var(--font-ui);
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   animation: lcmFadeIn 0.3s ease both;
 }
 
@@ -113,6 +115,7 @@
   max-width: 1200px;
   height: 90vh;
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   background: var(--clr-card-bg);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -326,51 +329,151 @@
   font-weight: 600;
 }
 
-/* ── FORM BODY (FLEX CONTAINER & SMOOTH SCROLL) ───────────── */
+/* ── FORM BODY (FLEX CONTAINER) ───────────────────────────── */
 .lcm-body {
   display: flex;
   flex: 1;
   min-height: 0;
-  max-height: calc(90vh - 80px);
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+  overflow: hidden;
   width: 100%;
   align-items: stretch;
-  scrollbar-width: thin;
-  scrollbar-color: #CBD5E1 transparent;
 }
 
-.lcm-body::-webkit-scrollbar { width: 6px; }
-.lcm-body::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.02); }
-.lcm-body::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
-.lcm-body::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-
-/* ── LEFT PANEL (CLEAN LUXURY WHITE & ANIMATED CASCADES) ─── */
+/* ── LEFT PANEL (CLEAN LUXURY WHITE & INDEPENDENT SCROLL) ─── */
 .lcm-left {
   flex: 1;
   background: var(--clr-panel-left);
-  padding: 20px 26px 28px 26px;
-  overflow: visible !important;
-  height: auto;
+  padding: 22px 28px 48px 28px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
   border-right: 1px solid #F1F5F9;
   min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
 }
 
-/* ── RIGHT PANEL (EXPANDED TO 430px & SMOOTH SCROLL) ─────── */
+.lcm-left::-webkit-scrollbar { width: 6px; }
+.lcm-left::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.02); }
+.lcm-left::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+.lcm-left::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* ── RIGHT PANEL (EXPANDED TO 430px & INDEPENDENT SCROLL) ─── */
 .lcm-right {
   width: 430px;
   background: var(--clr-panel-right);
-  padding: 20px 24px 36px 24px;
-  overflow: visible !important;
-  height: auto;
+  padding: 22px 26px 28px 26px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
   flex-shrink: 0;
   min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.lcm-right::-webkit-scrollbar { width: 6px; }
+.lcm-right::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.02); }
+.lcm-right::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+.lcm-right::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* ── DEAL DONE MODE BALANCED 50/50 LAYOUT ─────────────────── */
+.lcm-card.is-deal-done-mode {
+  max-width: 1180px;
+}
+
+.lcm-card.is-deal-done-mode .lcm-left {
+  flex: 1.05;
+  padding: 22px 28px 36px 28px;
+}
+
+.lcm-card.is-deal-done-mode .lcm-right {
+  flex: 1;
+  width: auto;
+  max-width: none;
+  padding: 22px 28px 36px 28px;
+  background: #FAFCFF;
+  border-left: 1px solid #EFF6FF;
+}
+
+.lcm-deal-done-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.lcm-dd-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #D1FAE5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lcm-dd-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lcm-dd-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #065F46;
+  display: block;
+}
+
+.lcm-dd-sub {
+  font-size: 0.74rem;
+  color: #047857;
+  display: block;
+}
+
+[data-theme='dark'] .lcm-card.is-deal-done-mode .lcm-right,
+.dark .lcm-card.is-deal-done-mode .lcm-right {
+  background: #111C2E !important;
+  border-left-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme='dark'] .lcm-deal-done-banner,
+.dark .lcm-deal-done-banner {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme='dark'] .lcm-dd-icon-box,
+.dark .lcm-dd-icon-box {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34D399 !important;
+}
+
+[data-theme='dark'] .lcm-dd-title,
+.dark .lcm-dd-title {
+  color: #A7F3D0 !important;
+}
+
+[data-theme='dark'] .lcm-dd-sub,
+.dark .lcm-dd-sub {
+  color: #6EE7B7 !important;
 }
 
 /* ── LUXURY SECTION HEADERS ─────────────────────────────── */
@@ -954,14 +1057,14 @@
   color: #9F1239;
 }
 
-/* ── ACTION FOOTER (FIXED MARGIN) ────────────────────────── */
+/* ── ACTION FOOTER (PINNED TO BOTTOM) ─────────────────────── */
 .lcm-footer {
-  margin-top: 14px;
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 14px;
+  padding-bottom: 4px;
   width: 100%;
   flex-shrink: 0;
 }
@@ -1061,13 +1164,7 @@
   transform: translateY(-1px);
 }
 
-/* ── RESPONSIVE ADAPTATIONS ──────────────────────────────── */
-@media (max-width: 960px) {
-  .lcm-body { flex-direction: column; }
-  .lcm-right { width: 100%; }
-  .lcm-card { height: 100vh; max-height: 100vh; border-radius: 0; }
-  .lcm-ambient-orb { display: none; }
-}
+
 
 /* --- LEAD CUSTOMER MODAL COMPLETE DARK MODE OVERRIDES (OBSIDIAN) --- */
 [data-theme='dark'] .lcm-backdrop,
@@ -1263,25 +1360,53 @@
 /* ══════════════════════════════════════════════════════════════════════
    MOBILE & TABLET RESPONSIVE STYLES FOR LEAD CUSTOMER MODAL
    ══════════════════════════════════════════════════════════════════════ */
-@media (max-width: 900px) {
+@media (max-width: 960px) {
+  .lcm-ambient-orb {
+    display: none !important;
+  }
+
   .lcm-card {
-    height: 94vh !important;
-    max-height: 94dvh !important;
+    height: 95vh !important;
+    max-height: 95dvh !important;
+    border-radius: 18px !important;
   }
 
   .lcm-body {
     flex-direction: column !important;
-    max-height: calc(94vh - 75px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: none !important;
   }
 
   .lcm-left {
     border-right: none !important;
     border-bottom: 1px solid #E2E8F0;
-    padding: 18px !important;
+    padding: 20px 18px 24px 18px !important;
+    overflow: visible !important;
+    min-height: auto !important;
   }
 
   .lcm-right {
-    padding: 18px !important;
+    width: 100% !important;
+    padding: 20px 18px 28px 18px !important;
+    overflow: visible !important;
+    min-height: auto !important;
+  }
+
+  .lcm-card.is-deal-done-mode .lcm-right {
+    border-left: none !important;
+    border-top: 1px solid #E2E8F0 !important;
+  }
+
+  .lcm-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: var(--clr-card-bg, #FFFFFF) !important;
+    z-index: 10 !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08) !important;
+    border-top: 1px solid #E2E8F0 !important;
+    margin-top: 14px !important;
   }
 }
 
@@ -1294,8 +1419,8 @@
   .lcm-card {
     width: 100vw !important;
     max-width: 100vw !important;
-    height: 96vh !important;
-    max-height: 96dvh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
     border-radius: 20px 20px 0 0 !important;
     margin: 0 !important;
   }
@@ -1327,9 +1452,9 @@
     padding: 14px 16px !important;
     position: sticky !important;
     bottom: 0 !important;
-    background: #FFFFFF !important;
+    background: var(--clr-card-bg, #FFFFFF) !important;
     z-index: 10 !important;
-    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08) !important;
   }
 
   .lcm-btn-submit,
@@ -1337,6 +1462,12 @@
     width: 100% !important;
     justify-content: center !important;
   }
+}
+
+[data-theme='dark'] .lcm-footer,
+.dark .lcm-footer {
+  background: #0F172A !important;
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 

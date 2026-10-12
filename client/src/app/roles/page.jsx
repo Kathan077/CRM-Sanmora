@@ -6,6 +6,7 @@ import Header from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
 import { roleService } from '../../services/role.service';
 import { userService } from '../../services/user.service';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import {
   ShieldCheck,
   Plus,
@@ -82,6 +83,7 @@ export default function RolesPage() {
 
   // Modal State for Roles
   const [showRoleModal, setShowRoleModal] = useState(false);
+  useBodyScrollLock(showRoleModal);
   const [editingRole, setEditingRole] = useState(null);
 
   // Role Form State

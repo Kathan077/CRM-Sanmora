@@ -43,6 +43,7 @@ import {
   syncCrmStoreWithBackendApi
 } from '../../utils/crmStore';
 import './tasks.css';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 const getCategorySelectIcon = (category) => {
   switch (category) {
@@ -91,6 +92,7 @@ export default function TasksPage() {
 
   // Modals & States
   const [showWizardModal, setShowWizardModal] = useState(false);
+  useBodyScrollLock(showWizardModal);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [newTask, setNewTask] = useState(DEFAULT_NEW_TASK);
   const [subtaskInput, setSubtaskInput] = useState('');
@@ -180,6 +182,60 @@ export default function TasksPage() {
     setSubtaskInput('');
     setShowWizardModal(true);
   };
+
+  const handleCloseTaskModal = () => {
+    setShowWizardModal(false);
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
+  // ── DEEP LINK NOTIFICATION & SPECIFIC TASK REDIRECT HANDLER ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const taskId = params.get('taskId');
+        const searchParam = params.get('search');
+        const autoOpen = params.get('autoOpen') === 'true' || Boolean(taskId);
+
+        if (autoOpen && (taskId || searchParam)) {
+          const pool = tasks.length > 0 ? tasks : getStoredTasks();
+          let target = null;
+          if (taskId) {
+            target = pool.find(t => String(t.id) === String(taskId));
+          }
+          if (!target && searchParam) {
+            const sLower = searchParam.toLowerCase().trim();
+            target = pool.find(t => 
+              (t.title && t.title.toLowerCase().includes(sLower)) ||
+              (t.description && t.description.toLowerCase().includes(sLower))
+            );
+          }
+
+          if (target) {
+            // Auto open the Task Edit Modal for this specific task, keeping all tasks visible
+            handleOpenEditModal(target);
+            if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error handling task deep-link:', err);
+      }
+    };
+
+    handleDeepLink();
+
+    const handleDeepLinkEvent = () => {
+      setTimeout(handleDeepLink, 50);
+    };
+    window.addEventListener('crm-deep-link', handleDeepLinkEvent);
+    return () => window.removeEventListener('crm-deep-link', handleDeepLinkEvent);
+  }, [tasks]);
 
   // Save new or update task
   const handleCreateTask = (e) => {
@@ -828,7 +884,7 @@ export default function TasksPage() {
                 </div>
               </div>
               <button
-                onClick={() => setShowWizardModal(false)}
+                onClick={handleCloseTaskModal}
                 className="tmodal-close-btn"
               >
                 <X size={16} />
@@ -972,7 +1028,7 @@ export default function TasksPage() {
               <div className="tmodal-footer">
                 <button
                   type="button"
-                  onClick={() => setShowWizardModal(false)}
+                  onClick={handleCloseTaskModal}
                   className="tmodal-btn-cancel"
                 >
                   Cancel

@@ -196,13 +196,14 @@ function Header({ title = 'Dashboard' }) {
         list.push({
           id: `notif-fup-${f.id || f.leadId}`,
           type: 'flow',
+          entityId: f.id || f.leadId,
           categoryName: isOverdue ? 'OVERDUE FLOW' : 'FLOW DUE TODAY',
           title: `Follow-Up Due: ${f.customerName || f.inquiryNo || 'Client Account'}`,
           desc: f.notes ? `"${f.notes.slice(0, 50)}..."` : `Scheduled ${f.followupType || 'Telephonic'} interaction`,
           time: isOverdue ? `Overdue (${targetNextDate})` : 'Due Today',
           isUrgent: isOverdue,
           actionText: 'Take Flow',
-          linkUrl: `/followups?search=${encodeURIComponent(f.customerName || f.inquiryNo || '')}`
+          linkUrl: `/followups?fupId=${encodeURIComponent(f.id || f.leadId || '')}&search=${encodeURIComponent(f.customerName || f.inquiryNo || '')}&autoOpen=true`
         });
       }
     });
@@ -213,13 +214,14 @@ function Header({ title = 'Dashboard' }) {
       list.push({
         id: `notif-task-${t.id}`,
         type: 'task',
+        entityId: t.id,
         categoryName: 'WORK TASK ASSIGNED',
         title: `Task: ${t.title || 'Work Task'}`,
         desc: `Assigned to ${t.assignedTo || 'Staff'} • Status: ${t.status || 'To Do'}`,
         time: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Recent Task',
         isUrgent: t.priority === 'High',
         actionText: 'View Task',
-        linkUrl: `/tasks?search=${encodeURIComponent(t.title || '')}`
+        linkUrl: `/tasks?taskId=${encodeURIComponent(t.id || '')}&search=${encodeURIComponent(t.title || '')}&autoOpen=true`
       });
     });
 
@@ -234,13 +236,16 @@ function Header({ title = 'Dashboard' }) {
       list.push({
         id: `notif-lead-${l.id}`,
         type: 'lead',
+        entityId: l.id,
         categoryName: isDealDone ? 'CLIENT CONVERTED' : 'NEW LEAD INQUIRY',
         title: `${isDealDone ? 'Client Converted' : 'New Lead'}: ${l.customerName || l.contactPerson || 'Inquiry'}`,
         desc: `${l.company || 'Corporate Client'} • Phone: ${l.phone || '—'}`,
         time: isDealDone ? 'Account Settled' : 'Active Inquiry',
         isUrgent: isDealDone,
         actionText: isDealDone ? 'View Khata' : 'View Lead',
-        linkUrl: isDealDone ? `/ledger` : `/customers?search=${encodeURIComponent(l.customerName || '')}`
+        linkUrl: isDealDone 
+          ? `/ledger?clientId=${encodeURIComponent(l.id || '')}&customer=${encodeURIComponent(l.customerName || l.contactPerson || '')}`
+          : `/customers?customerId=${encodeURIComponent(l.id || '')}&search=${encodeURIComponent(l.customerName || '')}&autoOpen=true`
       });
     });
 
@@ -278,6 +283,9 @@ function Header({ title = 'Dashboard' }) {
     setIsNotifOpen(false);
     if (notif.linkUrl) {
       router.push(notif.linkUrl);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('crm-deep-link', { detail: { notif, linkUrl: notif.linkUrl } }));
+      }
     }
   };
 
@@ -285,19 +293,31 @@ function Header({ title = 'Dashboard' }) {
   const handleSelectLead = (lead) => {
     setIsOpen(false);
     setSearchQuery('');
-    router.push(`/customers?search=${encodeURIComponent(lead.customerName || lead.contactPerson || '')}`);
+    const targetUrl = `/customers?customerId=${encodeURIComponent(lead.id || '')}&search=${encodeURIComponent(lead.customerName || lead.contactPerson || '')}&autoOpen=true`;
+    router.push(targetUrl);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('crm-deep-link', { detail: { type: 'lead', entityId: lead.id, linkUrl: targetUrl } }));
+    }
   };
 
   const handleSelectFollowup = (fup) => {
     setIsOpen(false);
     setSearchQuery('');
-    router.push(`/followups?search=${encodeURIComponent(fup.customerName || fup.inquiryNo || '')}`);
+    const targetUrl = `/followups?fupId=${encodeURIComponent(fup.id || fup.leadId || '')}&search=${encodeURIComponent(fup.customerName || fup.inquiryNo || '')}&autoOpen=true`;
+    router.push(targetUrl);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('crm-deep-link', { detail: { type: 'flow', entityId: fup.id || fup.leadId, linkUrl: targetUrl } }));
+    }
   };
 
   const handleSelectTask = (task) => {
     setIsOpen(false);
     setSearchQuery('');
-    router.push(`/tasks?search=${encodeURIComponent(task.title || '')}`);
+    const targetUrl = `/tasks?taskId=${encodeURIComponent(task.id || '')}&search=${encodeURIComponent(task.title || '')}&autoOpen=true`;
+    router.push(targetUrl);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('crm-deep-link', { detail: { type: 'task', entityId: task.id, linkUrl: targetUrl } }));
+    }
   };
 
   const handleSelectUser = (u) => {

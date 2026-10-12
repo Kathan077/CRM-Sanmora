@@ -4,6 +4,7 @@ import {
   Building2, Hash, User, FileText, CheckCircle2
 } from 'lucide-react';
 import './TransferLeadModal.css';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 const getInitials = (name) => {
   if (!name) return 'EM';
@@ -21,6 +22,7 @@ export default function TransferLeadModal({
   currentUser,
   onTransferConfirm
 }) {
+  useBodyScrollLock(isOpen);
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [transferNote, setTransferNote]   = useState('');
   const [isSubmitting, setIsSubmitting]   = useState(false);

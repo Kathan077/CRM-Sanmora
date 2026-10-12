@@ -551,6 +551,9 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
 
   const updatedLeads = currentLeads.map((l) => {
     if (l.id === leadId || l._id === leadId) {
+      const prevOwnerName = l.assignedTo || l.createdBy || senderName;
+      const prevOwnerId = l.assignedToId || l.createdById || senderId;
+
       targetLead = {
         ...l,
         assignedTo: targetName,
@@ -558,7 +561,17 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
         createdBy: targetName,
         createdById: targetId,
         originalAssignerName: targetName,
-        originalAssignerId: targetId
+        originalAssignerId: targetId,
+        isTransferredLead: true,
+        transferredFrom: prevOwnerName,
+        transferredFromId: prevOwnerId,
+        transferSplit: {
+          person1Id: prevOwnerId,
+          person1Name: prevOwnerName,
+          person2Id: targetId,
+          person2Name: targetName,
+          splitPct: 50
+        }
       };
       return targetLead;
     }
@@ -579,6 +592,9 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
       (targetLead && ((f.leadId && (f.leadId === targetLead.id || f.leadId === targetLead._id)) || (f.inquiryNo && f.inquiryNo === targetLead.inquiryNo))) ||
       f.id === leadId || f.leadId === leadId
     ) {
+      const prevOwnerName = f.assignedTo || f.createdBy || senderName;
+      const prevOwnerId = f.assignedToId || f.createdById || senderId;
+
       const history = Array.isArray(f.history) ? [...f.history] : [];
       history.unshift({
         id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -602,6 +618,16 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
         createdById: targetId,
         originalAssignerName: targetName,
         originalAssignerId: targetId,
+        isTransferredLead: true,
+        transferredFrom: prevOwnerName,
+        transferredFromId: prevOwnerId,
+        transferSplit: {
+          person1Id: prevOwnerId,
+          person1Name: prevOwnerName,
+          person2Id: targetId,
+          person2Name: targetName,
+          splitPct: 50
+        },
         history
       };
     }
@@ -644,6 +670,9 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
   const updatedLeads = currentLeads.map((l) => {
     const lId = String(l.id || l._id || '');
     if (idSet.has(lId) || idSet.has(String(l.id)) || idSet.has(String(l._id))) {
+      const prevOwnerName = l.assignedTo || l.createdBy || senderName;
+      const prevOwnerId = l.assignedToId || l.createdById || senderId;
+
       const updated = {
         ...l,
         assignedTo: targetName,
@@ -651,7 +680,17 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
         createdBy: targetName,
         createdById: targetId,
         originalAssignerName: targetName,
-        originalAssignerId: targetId
+        originalAssignerId: targetId,
+        isTransferredLead: true,
+        transferredFrom: prevOwnerName,
+        transferredFromId: prevOwnerId,
+        transferSplit: {
+          person1Id: prevOwnerId,
+          person1Name: prevOwnerName,
+          person2Id: targetId,
+          person2Name: targetName,
+          splitPct: 50
+        }
       };
       matchedLeads.push(updated);
       return updated;
@@ -675,6 +714,9 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
     const fInquiry = f.inquiryNo || '';
 
     if (idSet.has(fLeadId) || matchedInquiryNos.has(fInquiry)) {
+      const prevOwnerName = f.assignedTo || f.createdBy || senderName;
+      const prevOwnerId = f.assignedToId || f.createdById || senderId;
+
       const history = Array.isArray(f.history) ? [...f.history] : [];
       history.unshift({
         id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -698,6 +740,16 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
         createdById: targetId,
         originalAssignerName: targetName,
         originalAssignerId: targetId,
+        isTransferredLead: true,
+        transferredFrom: prevOwnerName,
+        transferredFromId: prevOwnerId,
+        transferSplit: {
+          person1Id: prevOwnerId,
+          person1Name: prevOwnerName,
+          person2Id: targetId,
+          person2Name: targetName,
+          splitPct: 50
+        },
         history
       };
     }
@@ -721,6 +773,114 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
   }).catch(e => console.warn('[MongoDB Bulk Customer Transfer Sync Error]:', e.message));
 
   return matchedLeads;
+};
+
+// ── 50/50 SHARED DEAL REVENUE ATTRIBUTION HELPER ──
+export const getDealRevenueSplit = (leadOrCustomer, totalAmount = 0) => {
+  if (!leadOrCustomer) {
+    return { isSplit: false, totalAmount: 0, person1: null, person2: null };
+  }
+  const amt = Number(totalAmount) || Number(leadOrCustomer.leadValue) || 0;
+
+  let p1Name = leadOrCustomer.transferSplit?.person1Name || leadOrCustomer.transferredFrom;
+  let p1Id = leadOrCustomer.transferSplit?.person1Id || leadOrCustomer.transferredFromId;
+
+  let p2Name = leadOrCustomer.transferSplit?.person2Name || leadOrCustomer.assignedTo;
+  let p2Id = leadOrCustomer.transferSplit?.person2Id || leadOrCustomer.assignedToId;
+
+  // Fallback 1: check originalAssigner
+  if (!p1Name && leadOrCustomer.originalAssignerName && p2Name && leadOrCustomer.originalAssignerName.toLowerCase().trim() !== p2Name.toLowerCase().trim()) {
+    p1Name = leadOrCustomer.originalAssignerName;
+    p1Id = leadOrCustomer.originalAssignerId;
+  }
+
+  // Fallback 2: check history array for transfer entries
+  if (!p1Name && Array.isArray(leadOrCustomer.history)) {
+    const transferEntry = leadOrCustomer.history.find(h => 
+      h.followupType === 'System Transfer' || 
+      h.followupType === 'Bulk Transfer' ||
+      (h.notes && h.notes.toLowerCase().includes('transferred from'))
+    );
+    if (transferEntry) {
+      p1Name = transferEntry.createdBy || transferEntry.originalAssignerName;
+      p1Id = transferEntry.createdById;
+      p2Name = transferEntry.assignedTo || p2Name;
+      p2Id = transferEntry.assignedToId || p2Id;
+    }
+  }
+
+  // Fallback 3: check if customer has a linked follow-up with transfer history
+  if (!p1Name && (leadOrCustomer.id || leadOrCustomer._id || leadOrCustomer.inquiryNo || leadOrCustomer.customerName || leadOrCustomer.phone)) {
+    try {
+      const followups = _cachedFollowups || getStoredFollowups();
+      const matchedFup = followups.find(f => 
+        (leadOrCustomer.id && (f.leadId === leadOrCustomer.id || f.id === leadOrCustomer.id || f.leadId === `lead-${leadOrCustomer.id}`)) ||
+        (leadOrCustomer._id && (f.leadId === String(leadOrCustomer._id) || f.leadId === `lead-${leadOrCustomer._id}`)) ||
+        (leadOrCustomer.inquiryNo && f.inquiryNo && f.inquiryNo === leadOrCustomer.inquiryNo) ||
+        (leadOrCustomer.customerName && f.customerName && f.customerName.toLowerCase().trim() === leadOrCustomer.customerName.toLowerCase().trim()) ||
+        (leadOrCustomer.phone && f.phone && f.phone.replace(/\D/g, '') && f.phone.replace(/\D/g, '') === String(leadOrCustomer.phone).replace(/\D/g, ''))
+      );
+      if (matchedFup) {
+        if (matchedFup.transferSplit?.person1Name || matchedFup.transferredFrom) {
+          p1Name = matchedFup.transferSplit?.person1Name || matchedFup.transferredFrom;
+          p1Id = matchedFup.transferSplit?.person1Id || matchedFup.transferredFromId;
+          p2Name = matchedFup.transferSplit?.person2Name || matchedFup.assignedTo || p2Name;
+          p2Id = matchedFup.transferSplit?.person2Id || matchedFup.assignedToId || p2Id;
+        } else if (Array.isArray(matchedFup.history)) {
+          const histTransfer = matchedFup.history.find(h =>
+            h.followupType === 'System Transfer' ||
+            h.followupType === 'Bulk Transfer' ||
+            (h.notes && h.notes.toLowerCase().includes('transferred')) ||
+            (h.createdBy && h.assignedTo && h.createdBy.toLowerCase().trim() !== h.assignedTo.toLowerCase().trim())
+          );
+          if (histTransfer) {
+            p1Name = histTransfer.createdBy || histTransfer.originalAssignerName;
+            p1Id = histTransfer.createdById;
+            p2Name = histTransfer.assignedTo || p2Name;
+            p2Id = histTransfer.assignedToId || p2Id;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Fallback 4: check if leadOrCustomer has different createdBy and assignedTo (like "assign deal")
+  if (!p1Name && leadOrCustomer.createdBy && p2Name) {
+    const cName = (typeof leadOrCustomer.createdBy === 'string' ? leadOrCustomer.createdBy : leadOrCustomer.createdBy?.name || '').trim();
+    const cId = String(leadOrCustomer.createdById || leadOrCustomer.createdBy?._id || '').trim();
+    const cNameLower = cName.toLowerCase();
+    if (
+      cNameLower &&
+      cNameLower !== p2Name.toLowerCase().trim() &&
+      !cNameLower.includes('admin') &&
+      !cNameLower.includes('system')
+    ) {
+      p1Name = cName;
+      p1Id = cId;
+    }
+  }
+
+  const isDifferent = Boolean(
+    p1Name && p2Name &&
+    p1Name.toLowerCase().trim() !== p2Name.toLowerCase().trim()
+  );
+
+  if (isDifferent) {
+    const half = Math.round(amt * 0.5);
+    return {
+      isSplit: true,
+      totalAmount: amt,
+      person1: { id: p1Id || '', name: p1Name, pct: 50, amount: half },
+      person2: { id: p2Id || '', name: p2Name, pct: 50, amount: amt - half }
+    };
+  }
+
+  return {
+    isSplit: false,
+    totalAmount: amt,
+    person1: { id: p2Id || p1Id || '', name: p2Name || p1Name || 'Executive', pct: 100, amount: amt },
+    person2: null
+  };
 };
 
 export const deleteLead = (leadId) => {
@@ -1550,28 +1710,24 @@ export const filterByRole = (items = [], user = null, allUsers = []) => {
 
   return items.filter((item) => {
     // ── Step 1: Check effective (time-resolved) assignee ─────────────
-    // Evaluates temporary assignment & expiry (reverts to original assigner / creator if expired)
+    // Evaluates temporary assignment & expiry:
+    // - While active: belongs exclusively to the new assignee (Person 2).
+    // - When expired: automatically converts back to the original assigner (Person 1).
     const eff = resolveEffectiveAssignee(item, todayStr);
     if (isTeamMember(eff.assignedToId, eff.assignedTo, eff.assignedToUsername)) {
       return true;
     }
 
-    // ── Step 2: Check Record Creator ──────────────────────────────────
-    // The employee who created the record always maintains visibility
-    if (isTeamMember(item.createdById, item.createdBy)) {
+    // ── Step 2: Check Record Creator (ONLY for unassigned items) ──────
+    // If the item has NO active assignee, the creator retains visibility so it's not lost
+    const isUnassigned = !eff.assignedToId && (!eff.assignedTo || GENERIC_NAMES.has(String(eff.assignedTo).toLowerCase().trim()));
+    if (isUnassigned && isTeamMember(item.createdById, item.createdBy)) {
       return true;
     }
 
-    // ── Step 3: Check Original Assigner ───────────────────────────────
-    // If under active temporary assignment, the original assigner maintains visibility
-    if (isTeamMember(item.originalAssignerId, item.originalAssignerName)) {
-      return true;
-    }
-
-    // ── Step 4: Legacy fallback — history scan ONLY for old records ───
+    // ── Step 3: Legacy fallback — history scan ONLY for old records ───
     // Only used when the follow-up has NO top-level ID fields at all
-    // (records created before IDs were stored). This prevents history
-    // entries from granting access to unrelated employees' follow-ups.
+    // (records created before IDs were stored).
     const hasNoTopLevelIds = !item.assignedToId && !item.createdById;
     if (hasNoTopLevelIds && Array.isArray(item.history) && item.history.length > 0) {
       return item.history.some(h =>

@@ -4,9 +4,10 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import './activity.css';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/user.service';
-import { getStoredLeads, getStoredLedgerAccounts, getUserMonthlyTargetAmount, saveStoredUserTarget, isAdminUser, getSubordinateUsers } from '../../utils/crmStore';
+import { getStoredLeads, getStoredLedgerAccounts, getUserMonthlyTargetAmount, saveStoredUserTarget, isAdminUser, getSubordinateUsers, getDealRevenueSplit } from '../../utils/crmStore';
 import {
   Activity, Calendar, Search, User, Clock, ShieldAlert, CheckCircle2,
   Filter, RotateCcw, Sparkles, Download, ChevronLeft, ChevronRight,
@@ -50,6 +51,7 @@ export default function ActivityLogsPage() {
   // Selected Date Inspector Modal State
   const [selectedDayData, setSelectedDayData] = useState(null);
   const [showDayModal, setShowDayModal] = useState(false);
+  useBodyScrollLock(Boolean(showTargetModal || showDayModal));
 
   // Global Raw Logs Table States
   const [logs, setLogs] = useState([]);
@@ -172,62 +174,39 @@ export default function ActivityLogsPage() {
     }
   }, [activeTab, fetchRawLogs]);
 
-  // 🏆 LEDGER REVENUE COMPUTATION PER USER (Strict Assignee Attribution)
+  // 🏆 LEDGER REVENUE COMPUTATION PER USER (with 50/50 Shared Split for Transferred Deals)
   const calculateUserMonthlyCollections = useCallback((uObj, year, month) => {
     if (typeof window === 'undefined' || !uObj) return 0;
     const leads = getStoredLeads();
     const ledgerStore = getStoredLedgerAccounts();
     if (!leads || leads.length === 0) return 0;
 
-    const uId = String(uObj._id || uObj.id || '').trim();
-    const uName = (uObj.name || '').toLowerCase().trim();
+    const uId = String(uObj._id || uObj.id || '').trim().toLowerCase();
+    const uName = (uObj.name || uObj.username || '').toLowerCase().trim();
     const uEmail = (uObj.email || '').toLowerCase().trim();
 
-    // Filter leads that strictly belong to this user
-    const userLeads = leads.filter(l => {
-      const assignedId = String(
-        l.assignedToId ||
-        l.assignedUserId ||
-        l.assignedTo?._id ||
-        (typeof l.assignedTo === 'string' && l.assignedTo.startsWith('user-') ? l.assignedTo : '') ||
-        ''
-      ).trim();
-      const rawAssignedName = (typeof l.assignedTo === 'string' ? l.assignedTo : (l.assignedTo?.name || '')).trim();
-      const assignedName = rawAssignedName.toLowerCase();
-      const assignedEmail = (l.assignedTo?.email || '').toLowerCase().trim();
-
-      const isAssigned = Boolean(
-        assignedId ||
-        (assignedName && assignedName !== 'unassigned' && assignedName !== '—' && assignedName !== '-')
-      );
-
-      if (isAssigned) {
-        // When assigned, credit belongs EXCLUSIVELY to the assigned salesperson
-        return Boolean(
-          (uId && assignedId && assignedId === uId) ||
-          (uEmail && assignedEmail && assignedEmail === uEmail) ||
-          (uName && assignedName && (assignedName === uName || assignedName.includes(uName) || uName.includes(assignedName)))
-        );
+    const matchesUser = (person) => {
+      if (!person) return false;
+      if (typeof person === 'string') {
+        const pLower = person.toLowerCase().trim();
+        return (uId && pLower === uId) || (uName && (pLower === uName || pLower.includes(uName) || uName.includes(pLower))) || (uEmail && pLower === uEmail);
       }
-
-      // If strictly UNASSIGNED, fallback to creator only if creator is this user
-      const createdId = String(l.createdById || l.createdBy?._id || '').trim();
-      const rawCreatedName = (typeof l.createdBy === 'string' ? l.createdBy : (l.createdBy?.name || '')).trim();
-      const createdName = rawCreatedName.toLowerCase();
-      const createdEmail = (l.createdBy?.email || '').toLowerCase().trim();
-
-      return Boolean(
-        (uId && createdId && createdId === uId) ||
-        (uEmail && createdEmail && createdEmail === uEmail) ||
-        (uName && createdName && (createdName === uName || createdName.includes(uName)))
-      );
-    });
+      const pId = String(person._id || person.id || '').trim().toLowerCase();
+      const pName = String(person.name || person.username || '').trim().toLowerCase();
+      const pEmail = String(person.email || '').trim().toLowerCase();
+      return (uId && pId && uId === pId) || (uName && pName && (uName === pName || uName.includes(pName) || pName.includes(uName))) || (uEmail && pEmail && uEmail === pEmail);
+    };
 
     let totalCollected = 0;
 
-    userLeads.forEach(l => {
+    leads.forEach(l => {
       const acc = ledgerStore[l.id] || ledgerStore[l._id] || (l.leadId && ledgerStore[l.leadId]);
-      if (acc && Array.isArray(acc.instalments)) {
+      if (!acc) return;
+
+      const totalVal = Number(acc.agreedProjectCost) || Number(l.leadValue) || 0;
+      const split = getDealRevenueSplit(l, totalVal);
+
+      if (Array.isArray(acc.instalments) && acc.instalments.length > 0) {
         acc.instalments.forEach(inst => {
           const isCleared = inst.status === 'Record Payment' || inst.status === 'Cleared' || inst.cleared !== false;
           if (isCleared && inst.date) {
@@ -236,7 +215,20 @@ export default function ActivityLogsPage() {
             const instMonth = instDate.getMonth() + 1;
 
             if (instYear === year && instMonth === month) {
-              totalCollected += (Number(inst.amount) || 0);
+              const instAmt = Number(inst.amount) || 0;
+              if (split.isSplit) {
+                const isP1 = matchesUser(split.person1);
+                const isP2 = matchesUser(split.person2);
+                if (isP1) totalCollected += Math.round(instAmt * 0.5);
+                if (isP2) totalCollected += Math.round(instAmt * 0.5);
+              } else {
+                // Normal lead attribution: strictly belongs to assigned rep
+                const assignedField = l.assignedToId || l.assignedTo || l.assignedUserId || l.userId;
+                const isOwner = matchesUser({ id: l.assignedToId, name: l.assignedTo }) || matchesUser(assignedField);
+                if (isOwner) {
+                  totalCollected += instAmt;
+                }
+              }
             }
           }
         });

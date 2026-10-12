@@ -873,7 +873,6 @@ select option {
 [data-theme='dark'] .cp-card-front::before,
 [data-theme='dark'] .cal-ref-card::before,
 [data-theme='dark'] .lcm-card::before,
-[data-theme='dark'] .cp-control-bar::before,
 [data-theme='dark'] .ac-banner::before,
 [data-theme='dark'] .fup-hero-card::before,
 [data-theme='dark'] .tasks-hero-card::before,
@@ -886,7 +885,6 @@ select option {
 .dark .cp-card-front::before,
 .dark .cal-ref-card::before,
 .dark .lcm-card::before,
-.dark .cp-control-bar::before,
 .dark .ac-banner::before,
 .dark .fup-hero-card::before,
 .dark .tasks-hero-card::before,
@@ -1459,6 +1457,48 @@ select option:checked {
     flex-wrap: wrap !important;
     justify-content: center !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   GLOBAL MODAL BACKGROUND PAGE SCROLL LOCK
+   ══════════════════════════════════════════════════════════════════════ */
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Ensure all modals, overlays, and modal bodies maintain full pointer interactivity & touch/wheel scrolling */
+.lcm-backdrop,
+.lead-modal-backdrop,
+.mfup-backdrop,
+.mfu-backdrop,
+.transfer-modal-backdrop,
+.user-modal-backdrop,
+.tmodal-backdrop,
+.modal-backdrop,
+.modal-backdrop-ledger,
+.ac-modal-overlay,
+.modal-overlay {
+  pointer-events: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lcm-card,
+.lcm-body,
+.lcm-left,
+.lcm-right,
+.mfup-modal,
+.mfu-card,
+.user-modal-card,
+.tmodal-card,
+.modal-card,
+.modal-card-ledger,
+.ac-modal-card,
+.date-modal-card {
+  pointer-events: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 

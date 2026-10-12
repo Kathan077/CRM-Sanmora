@@ -5,11 +5,11 @@ import {
   UserPlus, User, Building2, Mail, Phone, Briefcase,
   Navigation, MapPin, Globe, Hash, ShieldCheck, Snowflake,
   Flame, Target, UserCheck, FileText, AlertTriangle,
-  CheckCircle, X, Sparkles, Calendar, Clock, Tag,
+  CheckCircle, CheckCircle2, X, Sparkles, Calendar, Clock, Tag,
   TrendingUp, AlertCircle, Layers, ArrowRight, Star,
-  MessageSquare, Video, Handshake, Check
+  MessageSquare, Video, Handshake, Check, Users
 } from 'lucide-react';
-import { getCombinedEmployees, getNextInquiryNo } from '../../utils/crmStore';
+import { getCombinedEmployees, getNextInquiryNo, getDealRevenueSplit } from '../../utils/crmStore';
 import {
   getCountries,
   getStatesByCountry,
@@ -19,6 +19,7 @@ import {
   lookupPincodeAPI
 } from '../../utils/locationData';
 import SelectWithOther from '../common/SelectWithOther';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import './LeadCustomerModal.css';
 
 /* ─── TOP-LEVEL HELPER COMPONENTS (STABLE DOM REFERENCES) ───── */
@@ -48,7 +49,8 @@ function ValidationIcons({ state }) {
 }
 
 export default function LeadCustomerModal({
-  isOpen, onClose, onSubmit, employees = [], initialData = null, isEdit = false, currentUser = null
+  isOpen, onClose, onSubmit, employees = [], initialData = null, isEdit = false, currentUser = null,
+  isDealDoneMode = false
 }) {
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -76,6 +78,8 @@ export default function LeadCustomerModal({
 
   const defaultAssignedId = initialData?.assignedToId || (currentUserOption ? String(currentUserOption._id || currentUserOption.id) : currentUserId);
 
+  const dealSplit = initialData ? getDealRevenueSplit(initialData) : null;
+
   const [formData, setFormData] = useState({
     inquiryNo:        initialData?.inquiryNo        || getNextInquiryNo(),
     leadDate:         todayStr,
@@ -92,7 +96,7 @@ export default function LeadCustomerModal({
     city:             initialData?.city             || 'Ahmedabad',
     area:             initialData?.area             || 'SG Highway',
     pincode:          initialData?.pincode          || '380054',
-    leadStatus:       initialData?.status           || 'warm',
+    leadStatus:       isDealDoneMode ? 'Deal Done' : (initialData?.status || 'warm'),
     assignedToId:     initialData?.assignedToId     || defaultAssignedId,
     disqualifiedReason:  initialData?.disqualifiedReason  || '',
     disqualifiedRemarks: initialData?.disqualifiedRemarks || '',
@@ -106,10 +110,12 @@ export default function LeadCustomerModal({
   const [errors,          setErrors]          = useState({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
+  // Lock background page scroll whenever modal is open
+  useBodyScrollLock(isOpen);
+
   // Sync formData whenever modal opens or initialData changes
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
       setSubmitAttempted(false);
       setTouched({});
       if (initialData) {
@@ -129,7 +135,7 @@ export default function LeadCustomerModal({
           city:             initialData.city             || 'Ahmedabad',
           area:             initialData.area             || 'SG Highway',
           pincode:          initialData.pincode          || '380054',
-          leadStatus:       initialData.status           || initialData.leadStatus       || 'warm',
+          leadStatus:       isDealDoneMode ? 'Deal Done' : (initialData.status || initialData.leadStatus || 'warm'),
           assignedToId:     initialData.assignedToId     || defaultAssignedId,
           disqualifiedReason:  initialData.disqualifiedReason  || '',
           disqualifiedRemarks: initialData.disqualifiedRemarks || '',
@@ -155,7 +161,7 @@ export default function LeadCustomerModal({
           city:             'Ahmedabad',
           area:             'SG Highway',
           pincode:          '380054',
-          leadStatus:       'warm',
+          leadStatus:       isDealDoneMode ? 'Deal Done' : 'warm',
           assignedToId:     defaultAssignedId,
           disqualifiedReason:  '',
           disqualifiedRemarks: '',
@@ -165,12 +171,7 @@ export default function LeadCustomerModal({
           followupType:        'Telephonic',
         });
       }
-    } else {
-      document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen, initialData, currentUser]);
 
   useEffect(() => {
@@ -210,7 +211,7 @@ export default function LeadCustomerModal({
       }
     }
 
-    const needsFollowup = ['warm','hot','prospect'].includes(d.leadStatus);
+    const needsFollowup = !isDealDoneMode && ['warm','hot','prospect'].includes(d.leadStatus);
     if (needsFollowup) {
       if (!d.followupNotes?.trim())                       errs.followupNotes = 'Follow-up notes are required';
       else if (d.followupNotes.trim().length < 5)         errs.followupNotes = 'Notes must be at least 5 characters';
@@ -218,7 +219,7 @@ export default function LeadCustomerModal({
       else if (d.nextFollowupDate < today)                errs.nextFollowupDate = 'Date cannot be in the past';
     }
 
-    if (d.leadStatus === 'cold' && !d.disqualifiedReason) errs.disqualifiedReason = 'Please select a disqualification reason';
+    if (!isDealDoneMode && d.leadStatus === 'cold' && !d.disqualifiedReason) errs.disqualifiedReason = 'Please select a disqualification reason';
 
     return errs;
   }
@@ -364,7 +365,7 @@ export default function LeadCustomerModal({
 
   const handleBlur = field => setTouched(p => ({ ...p, [field]: true }));
 
-  const isFollowupRequired = ['warm','hot','prospect'].includes(formData.leadStatus);
+  const isFollowupRequired = !isDealDoneMode && ['warm','hot','prospect'].includes(formData.leadStatus);
   const totalErrors        = Object.keys(errors).length;
 
   const fstate = field => {
@@ -395,7 +396,8 @@ export default function LeadCustomerModal({
       assignedToUsername: assignedUsername,
       createdBy:          currentUserName,
       createdById:        currentUserId,
-      status:             formData.leadStatus,
+      status:             isDealDoneMode ? 'Deal Done' : formData.leadStatus,
+      leadStatus:         isDealDoneMode ? 'Deal Done' : formData.leadStatus,
     });
   };
 
@@ -418,13 +420,116 @@ export default function LeadCustomerModal({
   const curStatus = STATUS_OPTIONS.find(s => s.key === formData.leadStatus) || STATUS_OPTIONS[0];
   const CurStatusIcon = curStatus.icon;
 
+  const renderLocationFields = () => (
+    <>
+      <div className="lcm-sec-hdr" style={{ marginTop: '4px' }}>
+        <span className="lcm-sec-pill"><MapPin size={14} /></span>
+        <h3 className="lcm-sec-title">Location & Address</h3>
+        <div className="lcm-sec-line" />
+      </div>
+
+      {/* ADDRESS */}
+      <FieldGroup id="address" label="STREET ADDRESS" icon={MapPin} state={fstate('address')} error={errors.address}>
+        <div className="lcm-ico-badge"><MapPin size={14} /></div>
+        <input
+          type="text" className="lcm-input lcm-input-has-badge"
+          placeholder="Plot / Street / Area / Landmark (Optional)"
+          value={formData.address}
+          onChange={e => handleChange('address', e.target.value)}
+          onBlur={() => handleBlur('address')}
+        />
+        <ValidationIcons state={fstate('address')} />
+      </FieldGroup>
+
+      {/* COUNTRY & STATE */}
+      <div className="lcm-grid-2">
+        <FieldGroup id="country" label="COUNTRY" icon={Globe} state={fstate('country')} error={errors.country}>
+          <div className="lcm-ico-badge"><Globe size={14} /></div>
+          <SelectWithOther
+            inputClassName="lcm-select lcm-select-has-badge"
+            value={formData.country}
+            onChange={e => handleChange('country', e.target.value)}
+            name="country"
+          >
+            {countryList.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </SelectWithOther>
+        </FieldGroup>
+
+        <FieldGroup id="state" label="STATE / REGION" icon={MapPin} state={fstate('state')} error={errors.state}>
+          <div className="lcm-ico-badge"><MapPin size={14} /></div>
+          <SelectWithOther
+            inputClassName="lcm-select lcm-select-has-badge"
+            value={formData.state}
+            onChange={e => handleChange('state', e.target.value)}
+            name="state"
+          >
+            {stateList.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </SelectWithOther>
+        </FieldGroup>
+      </div>
+
+      {/* CITY, AREA, PINCODE */}
+      <div className="lcm-grid-3">
+        <FieldGroup id="city" label="CITY" icon={MapPin} state={fstate('city')} error={errors.city}>
+          <div className="lcm-ico-badge"><MapPin size={14} /></div>
+          <SelectWithOther
+            inputClassName="lcm-select lcm-select-has-badge"
+            value={formData.city}
+            onChange={e => handleChange('city', e.target.value)}
+            name="city"
+          >
+            {cityList.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </SelectWithOther>
+          <ValidationIcons state={fstate('city')} />
+        </FieldGroup>
+
+        <div className="lcm-field">
+          <label className="lcm-label">
+            <span className="lcm-label-icon"><Navigation size={13} /></span>
+            <span className="lcm-label-text">AREA</span>
+          </label>
+          <div className="lcm-input-wrap">
+            <div className="lcm-ico-badge"><Navigation size={14} /></div>
+            <SelectWithOther
+              inputClassName="lcm-select lcm-select-has-badge"
+              value={formData.area}
+              onChange={e => handleChange('area', e.target.value)}
+              name="area"
+            >
+              {areaList.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </SelectWithOther>
+          </div>
+        </div>
+
+        <FieldGroup id="pincode" label="PINCODE" icon={Hash} state={fstate('pincode')} error={errors.pincode}>
+          <div className="lcm-ico-badge"><Hash size={14} /></div>
+          <input
+            type="text" maxLength={10} className="lcm-input lcm-input-has-badge" placeholder="380009"
+            value={formData.pincode}
+            onChange={e => handleChange('pincode', e.target.value)}
+            onBlur={() => handleBlur('pincode')}
+          />
+          <ValidationIcons state={fstate('pincode')} />
+        </FieldGroup>
+      </div>
+    </>
+  );
+
   /* ─── RENDER ──────────────────────────────────────────────── */
   return (
     <div className="lcm-backdrop">
       <div className="lcm-ambient-orb orb-1" />
       <div className="lcm-ambient-orb orb-2" />
 
-      <div className="lcm-card">
+      <div className={`lcm-card${isDealDoneMode ? ' is-deal-done-mode' : ''}`}>
 
         {/* ══ HEADER (CLEAN BRIGHT LIGHT MODE) ════════════════ */}
         <div className="lcm-header">
@@ -439,24 +544,53 @@ export default function LeadCustomerModal({
                 <span className="lcm-badge-pro">
                   <Sparkles size={11} className="lcm-badge-sparkle" /> SANMORA CRM
                 </span>
-                <span
-                  className="lcm-badge-status"
-                  style={{
-                    background: curStatus.badgeBg,
-                    color: curStatus.textColor,
-                    borderColor: curStatus.badgeBorder,
-                    boxShadow: `0 2px 8px ${curStatus.glow}`
-                  }}
-                >
-                  <CurStatusIcon size={12} style={{ color: curStatus.color }} />
-                  {formData.leadStatus.toUpperCase()} LEAD
-                </span>
+                {isDealDoneMode ? (
+                  <span
+                    className="lcm-badge-status"
+                    style={{
+                      background: '#D1FAE5',
+                      color: '#047857',
+                      borderColor: '#A7F3D0',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)'
+                    }}
+                  >
+                    <CheckCircle2 size={12} style={{ color: '#10B981' }} />
+                    DEAL DONE CLIENT
+                  </span>
+                ) : (
+                  <span
+                    className="lcm-badge-status"
+                    style={{
+                      background: curStatus.badgeBg,
+                      color: curStatus.textColor,
+                      borderColor: curStatus.badgeBorder,
+                      boxShadow: `0 2px 8px ${curStatus.glow}`
+                    }}
+                  >
+                    <CurStatusIcon size={12} style={{ color: curStatus.color }} />
+                    {formData.leadStatus.toUpperCase()} LEAD
+                  </span>
+                )}
+                {dealSplit && dealSplit.isSplit && (
+                  <span
+                    className="lcm-badge-status"
+                    style={{
+                      background: '#EEF2FF',
+                      color: '#4F46E5',
+                      borderColor: '#C7D2FE',
+                      boxShadow: '0 2px 8px rgba(79, 70, 229, 0.15)'
+                    }}
+                  >
+                    <Users size={12} style={{ color: '#4F46E5' }} />
+                    50/50 SPLIT ({dealSplit.person1.name} & {dealSplit.person2.name})
+                  </span>
+                )}
               </div>
               <h2 className="lcm-hdr-title">
-                {isEdit ? 'Edit Customer Lead Profile' : 'Add New Customer Lead'}
+                {isDealDoneMode ? 'Record Customer Account (Deal Done)' : isEdit ? 'Edit Customer Lead Profile' : 'Add New Customer Lead'}
               </h2>
               <p className="lcm-hdr-subtitle">
-                Configure customer details, location tags, and automated sales follow-up tasks.
+                {isDealDoneMode ? 'Register customer details, contact info, and directly open active Khata ledger account.' : 'Configure customer details, location tags, and automated sales follow-up tasks.'}
               </p>
             </div>
           </div>
@@ -654,148 +788,58 @@ export default function LeadCustomerModal({
             </div>
 
             {/* LOCATION DETAILS */}
-            <div className="lcm-sec-hdr" style={{marginTop:'6px'}}>
-              <span className="lcm-sec-pill"><MapPin size={14} /></span>
-              <h3 className="lcm-sec-title">Location & Address</h3>
-              <div className="lcm-sec-line" />
-            </div>
-
-            {/* ADDRESS */}
-            <FieldGroup id="address" label="STREET ADDRESS" icon={MapPin} state={fstate('address')} error={errors.address}>
-              <div className="lcm-ico-badge"><MapPin size={14} /></div>
-              <input
-                type="text" className="lcm-input lcm-input-has-badge"
-                placeholder="Plot / Street / Area / Landmark (Optional)"
-                value={formData.address}
-                onChange={e => handleChange('address', e.target.value)}
-                onBlur={() => handleBlur('address')}
-              />
-              <ValidationIcons state={fstate('address')} />
-            </FieldGroup>
-
-            {/* COUNTRY & STATE */}
-            <div className="lcm-grid-2">
-              <FieldGroup id="country" label="COUNTRY" icon={Globe} state={fstate('country')} error={errors.country}>
-                <div className="lcm-ico-badge"><Globe size={14} /></div>
-                <SelectWithOther
-                  inputClassName="lcm-select lcm-select-has-badge"
-                  value={formData.country}
-                  onChange={e => handleChange('country', e.target.value)}
-                  name="country"
-                >
-                  {countryList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </SelectWithOther>
-              </FieldGroup>
-
-              <FieldGroup id="state" label="STATE / REGION" icon={MapPin} state={fstate('state')} error={errors.state}>
-                <div className="lcm-ico-badge"><MapPin size={14} /></div>
-                <SelectWithOther
-                  inputClassName="lcm-select lcm-select-has-badge"
-                  value={formData.state}
-                  onChange={e => handleChange('state', e.target.value)}
-                  name="state"
-                >
-                  {stateList.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </SelectWithOther>
-              </FieldGroup>
-            </div>
-
-            {/* CITY, AREA, PINCODE */}
-            <div className="lcm-grid-3">
-              <FieldGroup id="city" label="CITY" icon={MapPin} state={fstate('city')} error={errors.city}>
-                <div className="lcm-ico-badge"><MapPin size={14} /></div>
-                <SelectWithOther
-                  inputClassName="lcm-select lcm-select-has-badge"
-                  value={formData.city}
-                  onChange={e => handleChange('city', e.target.value)}
-                  name="city"
-                >
-                  {cityList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </SelectWithOther>
-                <ValidationIcons state={fstate('city')} />
-              </FieldGroup>
-
-              <div className="lcm-field">
-                <label className="lcm-label">
-                  <span className="lcm-label-icon"><Navigation size={13} /></span>
-                  <span className="lcm-label-text">AREA</span>
-                </label>
-                <div className="lcm-input-wrap">
-                  <div className="lcm-ico-badge"><Navigation size={14} /></div>
-                  <SelectWithOther
-                    inputClassName="lcm-select lcm-select-has-badge"
-                    value={formData.area}
-                    onChange={e => handleChange('area', e.target.value)}
-                    name="area"
-                  >
-                    {areaList.map(a => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </SelectWithOther>
-                </div>
-              </div>
-
-              <FieldGroup id="pincode" label="PINCODE" icon={Hash} state={fstate('pincode')} error={errors.pincode}>
-                <div className="lcm-ico-badge"><Hash size={14} /></div>
-                <input
-                  type="text" maxLength={10} className="lcm-input lcm-input-has-badge" placeholder="380009"
-                  value={formData.pincode}
-                  onChange={e => handleChange('pincode', e.target.value)}
-                  onBlur={() => handleBlur('pincode')}
-                />
-                <ValidationIcons state={fstate('pincode')} />
-              </FieldGroup>
-            </div>
+            {!isDealDoneMode && renderLocationFields()}
           </div>
 
           {/* ── RIGHT PANEL ─────────────────────────────────── */}
           <div className="lcm-right">
 
-            {/* LEAD STATUS */}
-            <div className="lcm-sec-hdr">
-              <span className="lcm-sec-pill"><ShieldCheck size={14} /></span>
-              <h3 className="lcm-sec-title">Lead Qualification Status</h3>
-              <div className="lcm-sec-line" />
-            </div>
+            {/* LOCATION DETAILS (SHOWN IN RIGHT PANEL IN DEAL DONE MODE FOR PERFECT 50/50 BALANCE) */}
+            {isDealDoneMode && renderLocationFields()}
 
-            {/* HIGH-OCTANE STATUS TILES GRID */}
-            <div className="lcm-status-grid">
-              {STATUS_OPTIONS.map(opt => {
-                const sel = formData.leadStatus === opt.key;
-                const OptIcon = opt.icon;
-                return (
-                  <button
-                    key={opt.key} type="button"
-                    className={`lcm-status-card${sel ? ' is-selected' : ''}`}
-                    style={{
-                      '--sopt-color':  opt.color,
-                      '--sopt-glow':   opt.glow,
-                      '--sopt-bg':     opt.bg,
-                      '--sopt-border': opt.border,
-                    }}
-                    onClick={() => handleChange('leadStatus', opt.key)}
-                  >
-                    <div className="lcm-status-card-inner">
-                      <div className="lcm-status-icon-wrap">
-                        <OptIcon size={16} />
-                      </div>
-                      <span className="lcm-status-label">{opt.label}</span>
-                      {sel && (
-                        <div className="lcm-status-check-badge">
-                          <Check size={12} />
+            {/* LEAD STATUS */}
+            {!isDealDoneMode && (
+              <>
+                <div className="lcm-sec-hdr">
+                  <span className="lcm-sec-pill"><ShieldCheck size={14} /></span>
+                  <h3 className="lcm-sec-title">Lead Qualification Status</h3>
+                  <div className="lcm-sec-line" />
+                </div>
+
+                {/* HIGH-OCTANE STATUS TILES GRID */}
+                <div className="lcm-status-grid">
+                  {STATUS_OPTIONS.map(opt => {
+                    const sel = formData.leadStatus === opt.key;
+                    const OptIcon = opt.icon;
+                    return (
+                      <button
+                        key={opt.key} type="button"
+                        className={`lcm-status-card${sel ? ' is-selected' : ''}`}
+                        style={{
+                          '--sopt-color':  opt.color,
+                          '--sopt-glow':   opt.glow,
+                          '--sopt-bg':     opt.bg,
+                          '--sopt-border': opt.border,
+                        }}
+                        onClick={() => handleChange('leadStatus', opt.key)}
+                      >
+                        <div className="lcm-status-card-inner">
+                          <div className="lcm-status-icon-wrap">
+                            <OptIcon size={16} />
+                          </div>
+                          <span className="lcm-status-label">{opt.label}</span>
+                          {sel && (
+                            <div className="lcm-status-check-badge">
+                              <Check size={12} />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {/* ASSIGN TO & REFERENCE */}
             <div className="lcm-grid-1" style={{marginTop:'4px'}}>
@@ -821,141 +865,158 @@ export default function LeadCustomerModal({
               </div>
             </div>
 
+            {/* DEAL DONE KHATA CONFIRMATION BANNER */}
+            {isDealDoneMode && (
+              <div className="lcm-deal-done-banner">
+                <div className="lcm-dd-icon-box">
+                  <CheckCircle2 size={16} />
+                </div>
+                <div className="lcm-dd-body">
+                  <span className="lcm-dd-title">Direct Khata Ledger Registration</span>
+                  <span className="lcm-dd-sub">Client will be saved as Deal Done and active in Customer Payment Ledger.</span>
+                </div>
+              </div>
+            )}
+
             {/* DYNAMIC WORKFLOW CONTAINER */}
-            {isFollowupRequired ? (
-              <div className="lcm-followup-box">
-                <div className="lcm-followup-hdr">
-                  <div className="lcm-followup-title">
-                    <Sparkles size={16} className="lcm-glow-sparkle" />
-                    <span>Schedule Next Action</span>
+            {!isDealDoneMode && (
+              isFollowupRequired ? (
+                <div className="lcm-followup-box">
+                  <div className="lcm-followup-hdr">
+                    <div className="lcm-followup-title">
+                      <Sparkles size={16} className="lcm-glow-sparkle" />
+                      <span>Schedule Next Action</span>
+                    </div>
+                    <span className="lcm-auto-pill">Auto-Followup</span>
                   </div>
-                  <span className="lcm-auto-pill">Auto-Followup</span>
-                </div>
 
-                {/* FOLLOWUP NOTES */}
-                <div className="lcm-field">
-                  <label className="lcm-label">
-                    <span className="lcm-label-icon" style={{color:'#2563EB'}}><FileText size={13} /></span>
-                    <span className="lcm-label-text">FOLLOW-UP NOTES</span>
-                    <span className="lcm-label-req">*</span>
-                  </label>
-                  <div className={`lcm-input-wrap ${fstate('followupNotes')}`}>
-                    <textarea
-                      rows={3} required className="lcm-textarea"
-                      placeholder="Enter customer requirement summary, discussion points..."
-                      value={formData.followupNotes}
-                      onChange={e => handleChange('followupNotes', e.target.value)}
-                      onBlur={() => handleBlur('followupNotes')}
-                    />
+                  {/* FOLLOWUP NOTES */}
+                  <div className="lcm-field">
+                    <label className="lcm-label">
+                      <span className="lcm-label-icon" style={{color:'#2563EB'}}><FileText size={13} /></span>
+                      <span className="lcm-label-text">FOLLOW-UP NOTES</span>
+                      <span className="lcm-label-req">*</span>
+                    </label>
+                    <div className={`lcm-input-wrap ${fstate('followupNotes')}`}>
+                      <textarea
+                        rows={3} required className="lcm-textarea"
+                        placeholder="Enter customer requirement summary, discussion points..."
+                        value={formData.followupNotes}
+                        onChange={e => handleChange('followupNotes', e.target.value)}
+                        onBlur={() => handleBlur('followupNotes')}
+                      />
+                    </div>
+                    {fstate('followupNotes') === 'is-invalid' && errors.followupNotes && (
+                      <span className="lcm-err-txt"><AlertCircle size={12} /> {errors.followupNotes}</span>
+                    )}
                   </div>
-                  {fstate('followupNotes') === 'is-invalid' && errors.followupNotes && (
-                    <span className="lcm-err-txt"><AlertCircle size={12} /> {errors.followupNotes}</span>
-                  )}
-                </div>
 
-                {/* NEXT FOLLOWUP & TIME */}
-                <div className="lcm-grid-2">
-                  <FieldGroup id="nextFollowupDate" label="REMINDER DATE" req icon={Calendar} state={fstate('nextFollowupDate')} error={errors.nextFollowupDate}>
-                    <div className="lcm-ico-badge"><Calendar size={14} /></div>
-                    <input
-                      type="date" required className="lcm-input lcm-input-has-badge lcm-picker-input"
-                      value={formData.nextFollowupDate}
-                      onChange={e => handleChange('nextFollowupDate', e.target.value)}
-                      onBlur={() => handleBlur('nextFollowupDate')}
-                      onClick={e => { try { e.target.showPicker(); } catch(err){} }}
-                    />
+                  {/* NEXT FOLLOWUP & TIME */}
+                  <div className="lcm-grid-2">
+                    <FieldGroup id="nextFollowupDate" label="REMINDER DATE" req icon={Calendar} state={fstate('nextFollowupDate')} error={errors.nextFollowupDate}>
+                      <div className="lcm-ico-badge"><Calendar size={14} /></div>
+                      <input
+                        type="date" required min={todayStr} className="lcm-input lcm-input-has-badge lcm-picker-input"
+                        value={formData.nextFollowupDate}
+                        onChange={e => handleChange('nextFollowupDate', e.target.value)}
+                        onBlur={() => handleBlur('nextFollowupDate')}
+                        onClick={e => { try { e.target.showPicker(); } catch(err){} }}
+                      />
+                    </FieldGroup>
+
+                    <div className="lcm-field">
+                      <label className="lcm-label">
+                        <span className="lcm-label-icon" style={{color:'#2563EB'}}><Clock size={13} /></span>
+                        <span className="lcm-label-text">PREFERRED TIME</span>
+                      </label>
+                      <div className="lcm-input-wrap">
+                        <div className="lcm-ico-badge"><Clock size={14} /></div>
+                        <input
+                          type="time" className="lcm-input lcm-input-has-badge lcm-picker-input"
+                          value={formData.preferredTime}
+                          onChange={e => handleChange('preferredTime', e.target.value)}
+                          onClick={e => { try { e.target.showPicker(); } catch(err){} }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* FOLLOWUP TYPE INTERACTIVE PILLS */}
+                  <div className="lcm-field">
+                    <label className="lcm-label">
+                      <span className="lcm-label-icon" style={{color:'#2563EB'}}><Tag size={13} /></span>
+                      <span className="lcm-label-text">FOLLOW-UP CHANNEL</span>
+                    </label>
+                    <div className="lcm-type-pills">
+                      {FOLLOWUP_TYPES.map(ft => {
+                        const selected = formData.followupType === ft.value;
+                        const TypeIcon = ft.icon;
+                        return (
+                          <button
+                            key={ft.value}
+                            type="button"
+                            className={`lcm-type-pill${selected ? ' active' : ''}`}
+                            onClick={() => handleChange('followupType', ft.value)}
+                          >
+                            <TypeIcon size={14} className="lcm-pill-ico" />
+                            <span>{ft.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="lcm-cold-box">
+                  <div className="lcm-cold-hdr">
+                    <AlertTriangle size={17} className="lcm-cold-ico" />
+                    <div className="lcm-cold-title">Disqualified Lead Detail</div>
+                  </div>
+
+                  <FieldGroup id="disqualifiedReason" label="DISQUALIFICATION REASON" req icon={AlertTriangle} state={fstate('disqualifiedReason')} error={errors.disqualifiedReason}>
+                    <div className="lcm-ico-badge"><AlertTriangle size={14} /></div>
+                    <SelectWithOther
+                      inputClassName="lcm-select lcm-select-has-badge"
+                      value={formData.disqualifiedReason}
+                      onChange={e => handleChange('disqualifiedReason', e.target.value)}
+                      name="disqualifiedReason"
+                    >
+                      <option value="">-- Select Disqualification Reason --</option>
+                      <option value="Not Interested">Not Interested Currently</option>
+                      <option value="Budget Constraint">Budget Constraints</option>
+                      <option value="Competitor Chosen">Competitor Chosen</option>
+                      <option value="Invalid Contact">Invalid Contact Details</option>
+                    </SelectWithOther>
                   </FieldGroup>
 
                   <div className="lcm-field">
                     <label className="lcm-label">
-                      <span className="lcm-label-icon" style={{color:'#2563EB'}}><Clock size={13} /></span>
-                      <span className="lcm-label-text">PREFERRED TIME</span>
+                      <span className="lcm-label-icon" style={{color:'#EF4444'}}><FileText size={13} /></span>
+                      <span className="lcm-label-text">DISQUALIFICATION REMARKS</span>
                     </label>
-                    <div className="lcm-input-wrap">
-                      <div className="lcm-ico-badge"><Clock size={14} /></div>
-                      <input
-                        type="time" className="lcm-input lcm-input-has-badge lcm-picker-input"
-                        value={formData.preferredTime}
-                        onChange={e => handleChange('preferredTime', e.target.value)}
-                        onClick={e => { try { e.target.showPicker(); } catch(err){} }}
-                      />
-                    </div>
+                    <textarea
+                      rows={3} className="lcm-textarea"
+                      placeholder="Enter remarks explaining why the lead was disqualified..."
+                      value={formData.disqualifiedRemarks}
+                      onChange={e => handleChange('disqualifiedRemarks', e.target.value)}
+                    />
                   </div>
                 </div>
-
-                {/* FOLLOWUP TYPE INTERACTIVE PILLS */}
-                <div className="lcm-field">
-                  <label className="lcm-label">
-                    <span className="lcm-label-icon" style={{color:'#2563EB'}}><Tag size={13} /></span>
-                    <span className="lcm-label-text">FOLLOW-UP CHANNEL</span>
-                  </label>
-                  <div className="lcm-type-pills">
-                    {FOLLOWUP_TYPES.map(ft => {
-                      const selected = formData.followupType === ft.value;
-                      const TypeIcon = ft.icon;
-                      return (
-                        <button
-                          key={ft.value}
-                          type="button"
-                          className={`lcm-type-pill${selected ? ' active' : ''}`}
-                          onClick={() => handleChange('followupType', ft.value)}
-                        >
-                          <TypeIcon size={14} className="lcm-pill-ico" />
-                          <span>{ft.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="lcm-cold-box">
-                <div className="lcm-cold-hdr">
-                  <AlertTriangle size={17} className="lcm-cold-ico" />
-                  <div className="lcm-cold-title">Disqualified Lead Detail</div>
-                </div>
-
-                <FieldGroup id="disqualifiedReason" label="DISQUALIFICATION REASON" req icon={AlertTriangle} state={fstate('disqualifiedReason')} error={errors.disqualifiedReason}>
-                  <div className="lcm-ico-badge"><AlertTriangle size={14} /></div>
-                  <SelectWithOther
-                    inputClassName="lcm-select lcm-select-has-badge"
-                    value={formData.disqualifiedReason}
-                    onChange={e => handleChange('disqualifiedReason', e.target.value)}
-                    name="disqualifiedReason"
-                  >
-                    <option value="">-- Select Disqualification Reason --</option>
-                    <option value="Not Interested">Not Interested Currently</option>
-                    <option value="Budget Constraint">Budget Constraints</option>
-                    <option value="Competitor Chosen">Competitor Chosen</option>
-                    <option value="Invalid Contact">Invalid Contact Details</option>
-                  </SelectWithOther>
-                </FieldGroup>
-
-                <div className="lcm-field">
-                  <label className="lcm-label">
-                    <span className="lcm-label-icon" style={{color:'#EF4444'}}><FileText size={13} /></span>
-                    <span className="lcm-label-text">DISQUALIFICATION REMARKS</span>
-                  </label>
-                  <textarea
-                    rows={3} className="lcm-textarea"
-                    placeholder="Enter remarks explaining why the lead was disqualified..."
-                    value={formData.disqualifiedRemarks}
-                    onChange={e => handleChange('disqualifiedRemarks', e.target.value)}
-                  />
-                </div>
-              </div>
+              )
             )}
 
             {/* ACTION FOOTER */}
             <div className="lcm-footer">
               <button
                 type="submit"
-                className={`lcm-btn-submit ${isFollowupRequired ? 'btn-emerald' : 'btn-cyan'}`}
+                className={`lcm-btn-submit ${isDealDoneMode || isFollowupRequired ? 'btn-emerald' : 'btn-cyan'}`}
               >
                 <div className="lcm-btn-content">
                   <CheckCircle size={18} className="lcm-btn-icon" />
                   <span>
-                    {isFollowupRequired
+                    {isDealDoneMode
+                      ? 'Record Customer & Open Khata'
+                      : isFollowupRequired
                       ? isEdit ? 'Update Lead & Follow-Up' : 'Save Lead & Schedule Follow-Up'
                       : isEdit ? 'Update Lead Profile'       : 'Save Disqualified Lead Record'}
                   </span>

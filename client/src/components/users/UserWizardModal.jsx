@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import SelectWithOther from '../common/SelectWithOther';
 import { isAdminUser } from '../../utils/crmStore';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import './UserWizardModal.css';
 import {
   UserPlus,
@@ -165,6 +166,7 @@ export default function UserWizardModal({
   submitting = false,
   currentUser = null
 }) {
+  useBodyScrollLock(isOpen);
   const isNonAdmin = currentUser && !isAdminUser(currentUser);
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);

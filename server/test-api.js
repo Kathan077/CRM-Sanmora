@@ -19,6 +19,8 @@ async function runTests() {
   console.log(`${BOLD}=======================================================${RESET}`);
 
   let server;
+  let newRoleId = null;
+  let newUserId = null;
   try {
     server = await startServer(0);
     const baseURL = `http://localhost:${server.address().port}`;
@@ -82,7 +84,7 @@ async function runTests() {
     if (!createRoleRes.ok) {
       throw new Error(`Create role failed: ${createRoleData.message}`);
     }
-    const newRoleId = createRoleData.data._id;
+    newRoleId = createRoleData.data._id;
     logSuccess(`Custom Role created with ID: ${newRoleId}`);
 
     // 5. Test Create New Employee User
@@ -108,7 +110,7 @@ async function runTests() {
     if (!createUserRes.ok) {
       throw new Error(`Create user failed: ${createUserData.message}`);
     }
-    const newUserId = createUserData.data._id;
+    newUserId = createUserData.data._id;
     logSuccess(`Employee created! ID: ${newUserId}, Email: ${newEmployeeEmail}`);
 
     // 6. Test Employee Login
@@ -255,6 +257,18 @@ async function runTests() {
     logFail(err.message);
     process.exitCode = 1;
   } finally {
+    if (newUserId) {
+      try {
+        const User = require('./src/models/User.model');
+        await User.findByIdAndDelete(newUserId);
+      } catch (e) {}
+    }
+    if (newRoleId) {
+      try {
+        const Role = require('./src/models/Role.model');
+        await Role.findByIdAndDelete(newRoleId);
+      } catch (e) {}
+    }
     if (server) {
       server.close();
     }

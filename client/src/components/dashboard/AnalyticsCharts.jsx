@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './AnalyticsCharts.css';
-import { getStoredLedgerAccounts, getStoredLeads, getStoredFollowups, getStoredTasks, getUserMonthlyTargetAmount, isAdminUser, getSubordinateUsers, filterByRole } from '../../utils/crmStore';
+import { getStoredLedgerAccounts, getStoredLeads, getStoredFollowups, getStoredTasks, getUserMonthlyTargetAmount, isAdminUser, getSubordinateUsers, filterByRole, getDealRevenueSplit } from '../../utils/crmStore';
 import {
   TrendingUp, PieChart, Users, Sparkles, Layers,
   CheckCircle2, Flame, Award, Target, PhoneCall,
@@ -676,7 +676,8 @@ function AnalyticsCharts({ leads = [], followups = [], tasks = [], employees = [
         if (!record) return false;
         const candidateFields = [
           record.assignedTo, record.assignedToId, record.assignedUser,
-          record.userId, record.createdBy, record.salesRep, record.owner
+          record.userId, record.createdBy, record.createdById, record.salesRep, record.owner,
+          record.name, record.id, record._id
         ];
         for (let j = 0; j < candidateFields.length; j++) {
           const field = candidateFields[j];
@@ -706,31 +707,63 @@ function AnalyticsCharts({ leads = [], followups = [], tasks = [], employees = [
 
       const empLeads = periodLeads.filter(matchesEmpFast);
       const prospects = empLeads.length;
-      const wonLeads = empLeads.filter(l => {
-        const st = (l.status || l.stage || '').toLowerCase();
-        return st.includes('won') || st.includes('closed') || st.includes('converted');
-      });
-      const wonDeals = wonLeads.length;
-      const wonRevenue = wonLeads.reduce((s, l) => s + (Number(l.leadValue || l.value) || 0), 0);
 
-      // 🎯 Target & Ledger Revenue Calculations
+      // Deal won revenue with 50/50 split attribution for transferred deals
+      let wonRevenue = 0;
+      let wonDealsCount = 0;
+      periodLeads.forEach(l => {
+        const st = (l.status || l.stage || l.leadStatus || '').toLowerCase();
+        const isWon = st.includes('won') || st.includes('closed') || st.includes('converted') || st.includes('deal done');
+        if (!isWon) return;
+
+        const val = Number(l.leadValue || l.value) || 0;
+        const split = getDealRevenueSplit(l, val);
+
+        if (split.isSplit) {
+          const isP1 = matchesEmpFast(split.person1);
+          const isP2 = matchesEmpFast(split.person2);
+          if (isP1) {
+            wonRevenue += split.person1.amount;
+            wonDealsCount += 0.5;
+          }
+          if (isP2) {
+            wonRevenue += split.person2.amount;
+            wonDealsCount += 0.5;
+          }
+        } else {
+          if (matchesEmpFast(l)) {
+            wonRevenue += val;
+            wonDealsCount += 1;
+          }
+        }
+      });
+      const wonDeals = Math.round(wonDealsCount);
+
+      // 🎯 Target & Ledger Revenue Calculations with 50/50 split attribution
       const targetAmount = getUserMonthlyTargetAmount(emp, currentYear, currentMonth);
 
       let ledgerCollections = 0;
       try {
-        const empLeadsForLedger = allLeadsForLedger.filter(matchesEmpFast);
-        empLeadsForLedger.forEach(l => {
+        allLeadsForLedger.forEach(l => {
           const acc = storedLedger[l.id];
           if (acc && Array.isArray(acc.instalments)) {
-            acc.instalments.forEach(inst => {
-              const isCleared = inst.status === 'Record Payment' || inst.status === 'Cleared' || inst.cleared !== false;
-              if (isCleared && inst.date) {
-                const instDate = new Date(inst.date);
-                if (instDate.getFullYear() === currentYear && (instDate.getMonth() + 1) === currentMonth) {
-                  ledgerCollections += (Number(inst.amount) || 0);
+            const split = getDealRevenueSplit(l, acc.agreedProjectCost || l.leadValue || 0);
+            const isP1 = split.isSplit && matchesEmpFast(split.person1);
+            const isP2 = split.isSplit && matchesEmpFast(split.person2);
+            const isNormalOwner = !split.isSplit && matchesEmpFast(l);
+
+            if (isP1 || isP2 || isNormalOwner) {
+              const multiplier = split.isSplit ? 0.5 : 1.0;
+              acc.instalments.forEach(inst => {
+                const isCleared = inst.status === 'Record Payment' || inst.status === 'Cleared' || inst.cleared !== false;
+                if (isCleared && inst.date) {
+                  const instDate = new Date(inst.date);
+                  if (instDate.getFullYear() === currentYear && (instDate.getMonth() + 1) === currentMonth) {
+                    ledgerCollections += Math.round((Number(inst.amount) || 0) * multiplier);
+                  }
                 }
-              }
-            });
+              });
+            }
           }
         });
       } catch (e) {

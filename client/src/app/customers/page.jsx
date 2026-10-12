@@ -27,15 +27,25 @@ const getInitials = (name) => {
 
 // Status Badge Config
 const getStatusBadge = (statusKey) => {
-  const st = (statusKey || 'cold').toLowerCase();
+  const st = String(statusKey || '').toLowerCase().trim();
   switch (st) {
+    case 'deal done':
+    case 'deal_done':
+    case 'dealdone':
+    case 'won':
+      return { label: 'DEAL DONE', icon: CheckCircle2, cls: 'badge-deal-done' };
     case 'hot':
       return { label: 'HOT', icon: TrendingUp, cls: 'badge-hot' };
     case 'warm':
       return { label: 'WARM', icon: Flame, cls: 'badge-warm' };
     case 'prospect':
       return { label: 'PROSPECT', icon: Target, cls: 'badge-prospect' };
+    case 'cold':
+      return { label: 'COLD', icon: Snowflake, cls: 'badge-cold' };
     default:
+      if (st.includes('deal') || st.includes('done') || st.includes('won') || st.includes('convert')) {
+        return { label: 'DEAL DONE', icon: CheckCircle2, cls: 'badge-deal-done' };
+      }
       return { label: 'COLD', icon: Snowflake, cls: 'badge-cold' };
   }
 };
@@ -180,7 +190,7 @@ const CustomerCard = React.memo(function CustomerCard({
   onTransfer,
   onToggleSelect
 }) {
-  const sBadge = getStatusBadge(c.status);
+  const sBadge = getStatusBadge(c.status || c.leadStatus);
   const StatusIcon = sBadge.icon;
   const displayName = c.customerName || c.contactPerson || c.name || 'Unnamed Client';
   const displayCompany = c.company || c.companyName || 'Individual Client';
@@ -434,7 +444,7 @@ const CustomerTableRow = React.memo(function CustomerTableRow({
   onTransfer,
   onToggleSelect
 }) {
-  const sBadge = getStatusBadge(c.status);
+  const sBadge = getStatusBadge(c.status || c.leadStatus);
   const StatusIcon = sBadge.icon;
   const displayName = c.customerName || c.contactPerson || c.name || 'Unnamed Client';
   const displayCompany = c.company || c.companyName || 'Individual Client';
@@ -776,12 +786,68 @@ export default function CustomersPage() {
     setShowModal(true);
   }, []);
 
+  // ── DEEP LINK NOTIFICATION & SPECIFIC LEAD/CUSTOMER REDIRECT HANDLER ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const customerId = params.get('customerId') || params.get('id');
+        const searchParam = params.get('search') || params.get('customer');
+        const autoOpen = params.get('autoOpen') === 'true' || Boolean(customerId);
+
+        if (!autoOpen && searchParam && search !== searchParam) {
+          setSearch(searchParam);
+        }
+
+        if (autoOpen && (customerId || searchParam)) {
+          const pool = customers.length > 0 ? customers : getStoredLeads();
+          let target = null;
+          if (customerId) {
+            target = pool.find(c => String(c.id) === String(customerId));
+          }
+          if (!target && searchParam) {
+            const sLower = searchParam.toLowerCase().trim();
+            target = pool.find(c => 
+              (c.customerName && c.customerName.toLowerCase().includes(sLower)) ||
+              (c.company && c.company.toLowerCase().includes(sLower)) ||
+              (c.phone && c.phone.includes(sLower))
+            );
+          }
+
+          if (target) {
+            // Auto open the LeadCustomerModal for this specific customer, keeping all customers visible
+            openEditModal(target);
+            if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error handling customer deep-link:', err);
+      }
+    };
+
+    handleDeepLink();
+
+    const handleDeepLinkEvent = () => {
+      setTimeout(handleDeepLink, 50);
+    };
+    window.addEventListener('crm-deep-link', handleDeepLinkEvent);
+    return () => window.removeEventListener('crm-deep-link', handleDeepLinkEvent);
+  }, [customers, openEditModal]);
+
   // Filtering (Ultra-fast memoized)
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim();
     return customers.filter((c) => {
       const matchSearch = !query || (c._searchIndex && c._searchIndex.includes(query));
-      const matchStatus = statusFilter === 'all' || (c.status || 'cold').toLowerCase() === statusFilter.toLowerCase();
+      const custStatus = (c.status || c.leadStatus || 'cold').toLowerCase().trim();
+      const matchStatus = statusFilter === 'all' || 
+        (statusFilter === 'deal done'
+          ? (custStatus.includes('deal') || custStatus.includes('won'))
+          : custStatus === statusFilter.toLowerCase());
       
       let matchEmp = true;
       if (selectedEmpFilter && selectedEmpFilter !== 'all') {
@@ -908,6 +974,7 @@ export default function CustomersPage() {
           <div className="cp-filter-pills">
             {[
               { key: 'all', label: 'All Accounts' },
+              { key: 'deal done', label: 'Deal Done' },
               { key: 'warm', label: 'Warm' },
               { key: 'hot', label: 'Hot' },
               { key: 'prospect', label: 'Prospect' },
@@ -1102,6 +1169,9 @@ export default function CustomersPage() {
         onClose={() => {
           setShowModal(false);
           setEditingCustomer(null);
+          if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
         }}
         onSubmit={handleCreateOrUpdateSubmit}
         initialData={editingCustomer}
@@ -1725,8 +1795,20 @@ export default function CustomersPage() {
           gap: 10px;
         }
 
+        :global([data-theme='dark']) .cp-empty-card,
+        :global(.dark) .cp-empty-card {
+          background: rgba(15, 23, 42, 0.88);
+          border: 1.5px dashed rgba(167, 139, 250, 0.3);
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        }
+
         .cp-empty-card :global(.cp-empty-ico) {
           color: #94A3B8;
+        }
+
+        :global([data-theme='dark']) .cp-empty-card :global(.cp-empty-ico),
+        :global(.dark) .cp-empty-card :global(.cp-empty-ico) {
+          color: #818CF8;
         }
 
         .cp-empty-card h4 {
@@ -1737,10 +1819,20 @@ export default function CustomersPage() {
           margin: 0;
         }
 
+        :global([data-theme='dark']) .cp-empty-card h4,
+        :global(.dark) .cp-empty-card h4 {
+          color: #F8FAFC;
+        }
+
         .cp-empty-card p {
           color: #64748B;
           font-size: 0.84rem;
           margin: 0;
+        }
+
+        :global([data-theme='dark']) .cp-empty-card p,
+        :global(.dark) .cp-empty-card p {
+          color: #94A3B8;
         }
 
         /* ── TABLE CARD & PIXEL-PERFECT COLUMN ALIGNMENT ───── */
@@ -1923,6 +2015,12 @@ export default function CustomersPage() {
           color: #047857;
         }
 
+        .badge-deal-done {
+          background: #D1FAE5;
+          border: 1px solid #A7F3D0;
+          color: #047857;
+        }
+
         .badge-cold {
           background: #E0F2FE;
           border: 1px solid #7DD3FC;
@@ -1983,6 +2081,11 @@ export default function CustomersPage() {
           text-align: center;
         }
 
+        :global([data-theme='dark']) .cp-empty-td,
+        :global(.dark) .cp-empty-td {
+          background: transparent !important;
+        }
+
         .cp-empty-box {
           display: flex;
           flex-direction: column;
@@ -1996,6 +2099,11 @@ export default function CustomersPage() {
           color: #94A3B8;
         }
 
+        :global([data-theme='dark']) .cp-empty-box :global(.cp-empty-ico),
+        :global(.dark) .cp-empty-box :global(.cp-empty-ico) {
+          color: #818CF8 !important;
+        }
+
         .cp-empty-box h4 {
           font-family: var(--font-hd, 'Metropolis', sans-serif);
           font-weight: 600;
@@ -2004,10 +2112,20 @@ export default function CustomersPage() {
           margin: 0;
         }
 
+        :global([data-theme='dark']) .cp-empty-box h4,
+        :global(.dark) .cp-empty-box h4 {
+          color: #F8FAFC !important;
+        }
+
         .cp-empty-box p {
           color: #64748B;
           font-size: 0.84rem;
           margin: 0;
+        }
+
+        :global([data-theme='dark']) .cp-empty-box p,
+        :global(.dark) .cp-empty-box p {
+          color: #94A3B8 !important;
         }
 
         .cp-btn-reset {
@@ -2020,6 +2138,19 @@ export default function CustomersPage() {
           font-size: 0.8rem;
           font-weight: 700;
           cursor: pointer;
+        }
+
+        :global([data-theme='dark']) .cp-btn-reset,
+        :global(.dark) .cp-btn-reset {
+          background: rgba(99, 102, 241, 0.2) !important;
+          border-color: rgba(99, 102, 241, 0.4) !important;
+          color: #A5B4FD !important;
+        }
+
+        :global([data-theme='dark']) .cp-btn-reset:hover,
+        :global(.dark) .cp-btn-reset:hover {
+          background: rgba(99, 102, 241, 0.35) !important;
+          color: #FFFFFF !important;
         }
 
         .text-ellipsis {

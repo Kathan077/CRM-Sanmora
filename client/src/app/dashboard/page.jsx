@@ -611,7 +611,7 @@ export default function DashboardPage() {
                               <span className="inq-vip-pill">{fup.inquiryNo || '#INQ-0000'}</span>
                               {eff.isExpired && (
                                 <span className="revert-vip-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <RotateCcw size={11} /> Reverted to Manager (Expired {eff.expiryDate})
+                                  <RotateCcw size={11} /> Reverted to {eff.assignedTo} (Expired {eff.expiryDate})
                                 </span>
                               )}
                               {!eff.isExpired && fup.assignedUntilDate && (

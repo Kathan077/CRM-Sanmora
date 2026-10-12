@@ -480,6 +480,12 @@
   border: 1px solid #A7F3D0 !important;
 }
 
+.cp-status-badge.badge-deal-done {
+  background: #D1FAE5 !important;
+  color: #047857 !important;
+  border: 1px solid #6EE7B7 !important;
+}
+
 .cp-status-badge.badge-cold {
   background: #E0F2FE !important;
   color: #0284C7 !important;
@@ -1698,6 +1704,13 @@
   border-color: rgba(16, 185, 129, 0.4) !important;
 }
 
+[data-theme='dark'] .cp-status-badge.badge-deal-done,
+.dark .cp-status-badge.badge-deal-done {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #34D399 !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
 [data-theme='dark'] .cp-status-badge.badge-cold,
 .dark .cp-status-badge.badge-cold {
   background: rgba(37, 99, 235, 0.2) !important;
@@ -1929,11 +1942,64 @@
 
   .cp-card-name {
     font-size: 0.92rem !important;
-  }
 }
 
+/* ── PREVENT ANY PSEUDO-ELEMENT OVERFLOW/LINE FROM CONTROL BAR ── */
+.cp-control-bar::before,
+[data-theme='dark'] .cp-control-bar::before,
+.dark .cp-control-bar::before {
+  display: none !important;
+  content: none !important;
+}
 
+/* ── DARK MODE EMPTY STATES (GRID & TABLE) ── */
+[data-theme='dark'] .cp-empty-card,
+.dark .cp-empty-card {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border: 1.5px dashed rgba(167, 139, 250, 0.3) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
 
+[data-theme='dark'] .cp-empty-td,
+.dark .cp-empty-td {
+  background: transparent !important;
+}
 
+[data-theme='dark'] .cp-empty-box,
+.dark .cp-empty-box {
+  background: transparent !important;
+}
 
+[data-theme='dark'] .cp-empty-card h4,
+.dark .cp-empty-card h4,
+[data-theme='dark'] .cp-empty-box h4,
+.dark .cp-empty-box h4 {
+  color: #F8FAFC !important;
+}
 
+[data-theme='dark'] .cp-empty-card p,
+.dark .cp-empty-card p,
+[data-theme='dark'] .cp-empty-box p,
+.dark .cp-empty-box p {
+  color: #94A3B8 !important;
+}
+
+[data-theme='dark'] .cp-empty-card .cp-empty-ico,
+.dark .cp-empty-card .cp-empty-ico,
+[data-theme='dark'] .cp-empty-box .cp-empty-ico,
+.dark .cp-empty-box .cp-empty-ico {
+  color: #818CF8 !important;
+}
+
+[data-theme='dark'] .cp-btn-reset,
+.dark .cp-btn-reset {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+  color: #A5B4FD !important;
+}
+
+[data-theme='dark'] .cp-btn-reset:hover,
+.dark .cp-btn-reset:hover {
+  background: rgba(99, 102, 241, 0.35) !important;
+  color: #FFFFFF !important;
+}

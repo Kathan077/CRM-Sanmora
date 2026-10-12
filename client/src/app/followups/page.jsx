@@ -6,6 +6,7 @@ import Header from '../../components/layout/Header';
 import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
 import ManageFollowUpModal from '../../components/customers/ManageFollowUpModal';
 import ProFilterDropdown from '../../components/common/ProFilterDropdown';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/user.service';
 import {
@@ -131,7 +132,7 @@ const FollowUpTableRow = React.memo(function FollowUpTableRow({
               <span>Exec: <strong>{eff.assignedTo || f.assignedTo || 'Staff'}</strong></span>
               {eff.isExpired && (
                 <span style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <RotateCcw size={11} /> Reverted to Manager (Expired {eff.expiryDate})
+                  <RotateCcw size={11} /> Reverted to {eff.assignedTo} (Expired {eff.expiryDate})
                 </span>
               )}
               {!eff.isExpired && f.assignedUntilDate && (
@@ -512,6 +513,7 @@ export default function FollowupsPage() {
 
   // Dedicated Manage External FollowUp Modal
   const [showManageModal, setShowManageModal] = useState(false);
+  useBodyScrollLock(Boolean(showAddLeadModal || showManageModal || showLogActivityModal));
   const [manageTarget, setManageTarget] = useState(null);
 
   const handleOpenManageModal = (fupItem) => {
@@ -664,6 +666,58 @@ export default function FollowupsPage() {
     };
   }, [user, loadFollowups]);
 
+  // ── DEEP LINK NOTIFICATION & SPECIFIC DEAL REDIRECT HANDLER ──
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const fupId = params.get('fupId') || params.get('manageId');
+        const searchParam = params.get('search') || params.get('customer');
+        const autoOpen = params.get('autoOpen') === 'true' || Boolean(fupId);
+
+        if (autoOpen && (fupId || searchParam)) {
+          const pool = followups.length > 0 ? followups : getStoredFollowups();
+          let target = null;
+          if (fupId) {
+            target = pool.find(f => 
+              String(f.id) === String(fupId) || 
+              String(f.leadId) === String(fupId) || 
+              String(f.inquiryNo) === String(fupId)
+            );
+          }
+          if (!target && searchParam) {
+            const sLower = searchParam.toLowerCase().trim();
+            target = pool.find(f => 
+              (f.customerName && f.customerName.toLowerCase().includes(sLower)) ||
+              (f.inquiryNo && f.inquiryNo.toLowerCase().includes(sLower)) ||
+              (f.company && f.company.toLowerCase().includes(sLower))
+            );
+          }
+
+          if (target) {
+            // Auto open the Manage FollowUp modal for this exact deal, keeping all table rows visible
+            handleOpenManageModal(target);
+            if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error handling follow-up deep-link:', err);
+      }
+    };
+
+    handleDeepLink();
+
+    const handleDeepLinkEvent = () => {
+      setTimeout(handleDeepLink, 50);
+    };
+    window.addEventListener('crm-deep-link', handleDeepLinkEvent);
+    return () => window.removeEventListener('crm-deep-link', handleDeepLinkEvent);
+  }, [followups]);
+
   const searchDeferred = useDeferredValue(search);
 
   // Set of dates that have active follow-ups scheduled (Single-pass O(N))
@@ -738,17 +792,16 @@ export default function FollowupsPage() {
       const f = followups[i];
       const isClosedItem = typeof f._isClosed === 'boolean' ? f._isClosed : isFollowupClosed(f);
 
+      allCount++;
       if (isClosedItem) {
         closedCount++;
       } else {
-        allCount++;
         if (f.nextFollowupDate === todayStr) todayCount++;
         else if (f.nextFollowupDate < todayStr) missedCount++;
         else if (f.nextFollowupDate > todayStr) upcomingCount++;
       }
 
       // Tab Filter fast exit
-      if (activeTab === 'all' && isClosedItem) continue;
       if (activeTab === 'today' && (f.nextFollowupDate !== todayStr || isClosedItem)) continue;
       if (activeTab === 'missed' && (f.nextFollowupDate >= todayStr || isClosedItem)) continue;
       if (activeTab === 'upcoming' && (f.nextFollowupDate <= todayStr || isClosedItem)) continue;
@@ -932,7 +985,7 @@ export default function FollowupsPage() {
       followupDate: fup.followupDate,
       followupType: fup.followupType || 'Telephonic',
       leadStatus: fup.leadStatus || fup.status || 'Warm',
-      nextFollowupDate: fup.nextFollowupDate !== '—' ? fup.nextFollowupDate : todayStr,
+      nextFollowupDate: fup.nextFollowupDate && fup.nextFollowupDate !== '—' && fup.nextFollowupDate >= todayStr ? fup.nextFollowupDate : todayStr,
       preferredTime: fup.preferredTime || '',
       notes: fup.notes || '',
       status: fup.status || 'Active'
@@ -964,27 +1017,6 @@ export default function FollowupsPage() {
               className="fup-hero-btn btn-add-cust"
             >
               <UserPlus size={16} /> Add New Customer
-            </button>
-
-            <button
-              onClick={handleDeleteAllFollowups}
-              className="fup-hero-btn btn-delete-all-fups"
-              style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Trash2 size={15} /> Clear All Follow-ups
             </button>
 
             {/* Segmented View Switcher */}
@@ -1655,6 +1687,9 @@ export default function FollowupsPage() {
         onClose={() => {
           setShowManageModal(false);
           setManageTarget(null);
+          if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
         }}
         followup={manageTarget}
         customer={manageTarget}
@@ -1801,6 +1836,7 @@ export default function FollowupsPage() {
                   <label className="form-label">Next Scheduled Date</label>
                   <input
                     type="date"
+                    min={todayStr}
                     value={activityForm.nextFollowupDate}
                     onChange={(e) =>
                       setActivityForm({ ...activityForm, nextFollowupDate: e.target.value })
