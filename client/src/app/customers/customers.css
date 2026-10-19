@@ -261,14 +261,14 @@
 .cp-filter-pills {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
   flex-wrap: wrap !important;
 }
 
 .cp-filter-pill {
-  padding: 10px 22px !important;
+  padding: 8px 16px !important;
   border-radius: 9999px !important;
-  font-size: 0.92rem !important;
+  font-size: 0.85rem !important;
   font-weight: 700 !important;
   background: #FFFFFF !important;
   color: #475569 !important;
@@ -451,10 +451,10 @@
 .cp-status-badge {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  font-size: 0.74rem !important;
-  font-weight: 600 !important;
-  padding: 6px 14px !important;
+  gap: 5px !important;
+  font-size: 0.76rem !important;
+  font-weight: 700 !important;
+  padding: 5px 11px !important;
   border-radius: 9999px !important;
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
@@ -493,8 +493,8 @@
 }
 
 .cp-inquiry-pill {
-  font-size: 0.74rem !important;
-  font-weight: 600 !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
   color: #4F46E5 !important;
   background: #EEF2FF !important;
   border: 1px solid #C7D2FE !important;
@@ -571,7 +571,7 @@
 /* --- 4. GRID CARDS VIEW --- */
 .cp-grid-container {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
   gap: 20px !important;
   width: 100% !important;
 }
@@ -583,7 +583,7 @@
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
-  height: 310px !important;
+  height: 350px !important;
   position: relative !important;
   overflow: visible !important;
   animation: cpFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
@@ -621,7 +621,7 @@
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
   border-top: 3px solid #2563EB !important;
-  padding: 20px !important;
+  padding: 16px 18px !important;
   box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.06) !important;
   z-index: 2 !important;
   transform: rotateY(0deg) !important;
@@ -873,23 +873,24 @@
 
 .cp-card-hdr {
   display: flex !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   justify-content: space-between !important;
-  gap: 12px !important;
+  gap: 8px !important;
+  padding-bottom: 12px !important;
 }
 
 .cp-card-avatar {
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 14px !important;
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
   background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
   color: #FFFFFF !important;
-  font-weight: 600 !important;
-  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 0 6px 16px -2px rgba(37, 99, 235, 0.35) !important;
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3) !important;
   flex-shrink: 0 !important;
 }
 
@@ -900,23 +901,23 @@
 
 .cp-card-name {
   font-family: var(--font-heading) !important;
-  font-size: 1.05rem !important;
-  font-weight: 600 !important;
+  font-size: 1.08rem !important;
+  font-weight: 700 !important;
   color: #0F172A !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  line-height: 1.2 !important;
+  line-height: 1.25 !important;
 }
 
 .cp-card-company {
   display: flex !important;
   align-items: center !important;
   gap: 5px !important;
-  font-size: 0.82rem !important;
+  font-size: 0.88rem !important;
   color: #64748B !important;
   font-weight: 600 !important;
-  margin-top: 3px !important;
+  margin-top: 2px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -929,14 +930,15 @@
 
 .cp-card-divider {
   height: 1px !important;
-  background: #F1F5F9 !important;
-  margin: 0 !important;
+  background: #E2E8F0 !important;
+  margin: 0 0 14px 0 !important;
+  width: 100% !important;
 }
 
 .cp-card-body {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 10px !important;
 }
 
 .cp-card-row {
@@ -944,7 +946,7 @@
   align-items: center !important;
   justify-content: space-between !important;
   gap: 12px !important;
-  font-size: 0.85rem !important;
+  font-size: 0.88rem !important;
 }
 
 .cp-card-lbl {
@@ -956,20 +958,23 @@
   flex-shrink: 0 !important;
   letter-spacing: 0.02em !important;
   text-transform: uppercase !important;
-  font-size: 0.76rem !important;
+  font-size: 0.8rem !important;
 }
 
 .cp-card-val {
   color: #0F172A !important;
   font-weight: 700 !important;
+  font-size: 0.92rem !important;
   text-align: right !important;
 }
 
 .cp-card-ftr {
   display: flex !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
-  gap: 8px !important;
-  margin-top: 4px !important;
+  gap: 7px !important;
+  margin-top: auto !important;
+  width: 100% !important;
 }
 
 .cp-card-btn {
@@ -984,13 +989,14 @@
 }
 
 .cp-card-fup-trigger {
-  flex: 1 !important;
+  width: 100% !important;
+  flex: 1 1 100% !important;
   background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%) !important;
   color: #FFFFFF !important;
-  padding: 8.5px 10px !important;
+  padding: 8.5px 12px !important;
   border-radius: 12px !important;
-  font-weight: 600 !important;
-  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  font-size: 0.86rem !important;
   border: none !important;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
 }
@@ -1010,14 +1016,16 @@
   background: #EEF2FF !important;
   color: #4F46E5 !important;
   border: 1px solid #C7D2FE !important;
-  padding: 8.5px 10px !important;
+  padding: 7px 10px !important;
   border-radius: 12px !important;
   font-weight: 600 !important;
-  font-size: 0.8rem !important;
+  font-size: 0.82rem !important;
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 6px !important;
-  flex-shrink: 0 !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
 }
 
 .cp-card-edit:hover {
@@ -1029,16 +1037,18 @@
 }
 
 .cp-card-del {
-  width: 42px !important;
-  height: 42px !important;
+  width: 38px !important;
+  height: 36px !important;
+  min-width: 38px !important;
   background: #FFF1F2 !important;
   color: #E11D48 !important;
   border: 1px solid #FECDD3 !important;
-  border-radius: 14px !important;
+  border-radius: 12px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
+  padding: 0 !important;
 }
 
 .cp-card-del:hover {
@@ -1524,21 +1534,30 @@
   color: #818cf8 !important;
 }
 
-/* Card & Table Transfer Buttons */
 .cp-card-transfer {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.12) 100%) !important;
-  border: 1px solid rgba(99, 102, 241, 0.35) !important;
-  color: #60a5fa !important;
-  padding: 7px 14px !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.1) 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  color: #2563eb !important;
+  padding: 7px 10px !important;
   border-radius: 12px !important;
-  font-size: 0.78rem !important;
-  font-weight: 700 !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  justify-content: center !important;
+  gap: 5px !important;
   cursor: pointer !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1) !important;
+}
+
+[data-theme='dark'] .cp-card-transfer,
+.dark .cp-card-transfer {
+  background: rgba(59, 130, 246, 0.18) !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  color: #60a5fa !important;
 }
 
 .cp-card-transfer:hover {
@@ -1718,9 +1737,16 @@
   border-color: rgba(37, 99, 235, 0.4) !important;
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   CUSTOMER DIRECTORY RESPONSIVE RULES (ALL SCREEN SIZES)
-   ══════════════════════════════════════════════════════════════════════ */
+/* On standard laptops and desktops up to 1530px:
+   Whether sidebar is OPEN or CLOSED, maintain 3 spacious columns
+   so all company names, person names, and inquiry #s are 100% visible with zero cutting */
+@media (min-width: 992px) and (max-width: 1530px) {
+  .cp-grid-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 20px !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .crm-main-content,
   .crm-main-content.collapsed {
@@ -1824,7 +1850,7 @@
   }
 
   .cp-grid-container {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 14px !important;
     width: 100% !important;
   }
@@ -1833,7 +1859,7 @@
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    height: 325px !important;
+    height: 350px !important;
   }
 
   .cp-card-front,
@@ -1919,6 +1945,18 @@
   }
 }
 
+@media (max-width: 640px) {
+  .cp-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .cp-card {
+    height: 350px !important;
+  }
+}
+
 @media (max-width: 480px) {
   .cp-hdr-title {
     font-size: 1.22rem !important;
@@ -1942,6 +1980,7 @@
 
   .cp-card-name {
     font-size: 0.92rem !important;
+  }
 }
 
 /* ── PREVENT ANY PSEUDO-ELEMENT OVERFLOW/LINE FROM CONTROL BAR ── */

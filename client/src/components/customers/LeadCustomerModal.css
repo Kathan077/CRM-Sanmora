@@ -696,15 +696,13 @@
   color: #0F172A !important;
 }
 
-.lcm-input[type="date"],
-.lcm-input[type="time"] {
+.lcm-input[type="date"] {
   appearance: none;
   -webkit-appearance: none;
   color-scheme: light;
 }
 
-.lcm-input[type="date"]::-webkit-calendar-picker-indicator,
-.lcm-input[type="time"]::-webkit-calendar-picker-indicator {
+.lcm-input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute !important;
   top: 0 !important;
   left: 0 !important;
@@ -718,9 +716,30 @@
   color: transparent !important;
 }
 
-.lcm-input[type="date"]::-webkit-calendar-picker-indicator:hover,
-.lcm-input[type="time"]::-webkit-calendar-picker-indicator:hover {
+.lcm-input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0 !important;
+}
+
+/* Native Clean Time Input (No wheel popup, type any time directly) */
+.lcm-time-input-clean {
+  color-scheme: light;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: text;
+}
+
+.lcm-time-input-clean::-webkit-calendar-picker-indicator {
+  display: none !important;
+  -webkit-appearance: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+[data-theme='dark'] .lcm-time-input-clean,
+.dark .lcm-time-input-clean {
+  color-scheme: dark;
 }
 
 /* ── SELECT DROPDOWN ULTRA-CLEAN STYLING ─────────────────── */

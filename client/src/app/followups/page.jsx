@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/user.service';
 import {
   getStoredFollowups,
+  getStoredLeads,
   saveFollowup,
   updateFollowupStatus,
   deleteFollowup,
@@ -44,6 +45,7 @@ import {
   MessageSquare,
   Mail,
   User,
+  Building2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -72,9 +74,11 @@ const FollowUpTableRow = React.memo(function FollowUpTableRow({
 }) {
   const isClosed = f.status === 'No FollowUp' || f.status === 'Closed' || f.status === 'Completed';
   const isOverdue = f.nextFollowupDate < todayStr && f.status === 'Active';
-  const initials = f.customerName
-    ? f.customerName
+  const displayName = f.company || f.customerName || 'Client';
+  const initials = displayName
+    ? displayName
         .split(' ')
+        .filter(Boolean)
         .map((n) => n[0])
         .join('')
         .toUpperCase()
@@ -115,28 +119,55 @@ const FollowUpTableRow = React.memo(function FollowUpTableRow({
         </div>
       </td>
 
-      {/* FOLLOWUP TYPE */}
+      {/* STATUS */}
       <td>
-        <span className="type-pill-badge">
-          <Phone size={11} /> {f.followupType || 'Telephonic'}
-        </span>
+        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          {f.status === 'Active' ? (
+            <span className="status-badge-active">
+              <span className="dot-green" /> Active
+            </span>
+          ) : (
+            <span className="status-badge-closed">
+              <span className="dot-red" /> No FollowUp
+            </span>
+          )}
+          {f.leadStatus && (
+            <span className={`lead-status-pill st-${(f.leadStatus || '').toLowerCase().replace(/\s+/g, '-')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              {f.leadStatus === 'Hot' ? <><Flame size={11} /> Hot Lead</> :
+               f.leadStatus === 'Warm' ? <><Zap size={11} /> Warm Lead</> :
+               f.leadStatus === 'Prospect' ? <><Lightbulb size={11} /> Prospect</> :
+               f.leadStatus === 'Cold' ? <><Snowflake size={11} /> Cold Lead</> :
+               f.leadStatus === 'Deal Done' ? <><CheckCircle2 size={11} /> Won</> :
+               f.leadStatus === 'Deal Cancelled' ? <><XCircle size={11} /> Lost</> : f.leadStatus}
+            </span>
+          )}
+        </div>
       </td>
 
-      {/* CUSTOMER NAME & ASSIGNEE */}
-      <td>
+      {/* COMPANY / CUSTOMER NAME & ASSIGNEE */}
+      <td className="fup-td-cust">
         <div className="customer-cell">
           <div className="cust-avatar">{initials}</div>
           <div className="cust-info">
-            <div className="cust-name-txt">{f.customerName}</div>
+            <div className="cust-primary-company" title={displayName}>
+              <Building2 size={14} className="cust-company-icon" />
+              <span>{displayName}</span>
+            </div>
+            {f.company && f.customerName && (
+              <div className="cust-secondary-person" title={f.customerName}>
+                <User size={13} className="cust-person-icon" />
+                <span>{f.customerName}</span>
+              </div>
+            )}
             <div className="cust-exec-txt" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span>Exec: <strong>{eff.assignedTo || f.assignedTo || 'Staff'}</strong></span>
               {eff.isExpired && (
-                <span style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ color: '#DC2626', fontWeight: 600, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   <RotateCcw size={11} /> Reverted to {eff.assignedTo} (Expired {eff.expiryDate})
                 </span>
               )}
               {!eff.isExpired && f.assignedUntilDate && (
-                <span style={{ color: '#7C3AED', fontWeight: 600, fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ color: '#7C3AED', fontWeight: 600, fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                   <Clock size={11} /> Temp Assigned Until: {f.assignedUntilDate}
                 </span>
               )}
@@ -183,29 +214,11 @@ const FollowUpTableRow = React.memo(function FollowUpTableRow({
         <span className="inquiry-pill">{f.inquiryNo || '#INQ-0000'}</span>
       </td>
 
-      {/* STATUS */}
+      {/* FOLLOWUP TYPE */}
       <td>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {f.status === 'Active' ? (
-            <span className="status-badge-active">
-              <span className="dot-green" /> Active
-            </span>
-          ) : (
-            <span className="status-badge-closed">
-              <span className="dot-red" /> No FollowUp
-            </span>
-          )}
-          {f.leadStatus && (
-            <span className={`lead-status-pill st-${(f.leadStatus || '').toLowerCase().replace(/\s+/g, '-')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              {f.leadStatus === 'Hot' ? <><Flame size={11} /> Hot Lead</> :
-               f.leadStatus === 'Warm' ? <><Zap size={11} /> Warm Lead</> :
-               f.leadStatus === 'Prospect' ? <><Lightbulb size={11} /> Prospect</> :
-               f.leadStatus === 'Cold' ? <><Snowflake size={11} /> Cold Lead</> :
-               f.leadStatus === 'Deal Done' ? <><CheckCircle2 size={11} /> Won</> :
-               f.leadStatus === 'Deal Cancelled' ? <><XCircle size={11} /> Lost</> : f.leadStatus}
-            </span>
-          )}
-        </div>
+        <span className="type-pill-badge">
+          <Phone size={11} /> {f.followupType || 'Telephonic'}
+        </span>
       </td>
     </tr>
   );
@@ -555,6 +568,20 @@ export default function FollowupsPage() {
     // Filter followups according to User Role & Manager Hierarchy
     const scopedData = filterByRole(rawData, user, effectiveEmployees);
 
+    // Build fast lookup map of leads to enrich company name if missing in followups
+    const allLeads = getStoredLeads();
+    const leadsMap = new Map();
+    for (const l of allLeads) {
+      const comp = (l.company || l.companyName || '').trim();
+      if (!comp) continue;
+      if (l.id) leadsMap.set(String(l.id), comp);
+      if (l._id) leadsMap.set(String(l._id), comp);
+      if (l.inquiryNo) leadsMap.set(String(l.inquiryNo).trim().toLowerCase(), comp);
+      if (l.phone) leadsMap.set(String(l.phone).replace(/\D/g, ''), comp);
+      if (l.customerName) leadsMap.set(String(l.customerName).trim().toLowerCase(), comp);
+      if (l.name) leadsMap.set(String(l.name).trim().toLowerCase(), comp);
+    }
+
     // Defensive Deduplication: Collapse multiple records for the exact same inquiry or lead into 1 unique row
     const uniqueMap = new Map();
     for (const item of scopedData) {
@@ -584,6 +611,20 @@ export default function FollowupsPage() {
       const rawLeadStatus = String(f.leadStatus || '').toLowerCase();
       const rawNotes = String(f.notes || '').toLowerCase();
 
+      const cleanPhone = String(f.phone || '').replace(/\D/g, '');
+      const cleanCust = String(f.customerName || '').trim().toLowerCase();
+      const cleanInq = String(f.inquiryNo || '').trim().toLowerCase();
+      const cleanLeadId = String(f.leadId || '');
+      const cleanId = String(f._id || f.id || '');
+
+      const resolvedCompany = f.company ||
+        (cleanLeadId && leadsMap.get(cleanLeadId)) ||
+        (cleanInq && leadsMap.get(cleanInq)) ||
+        (cleanPhone && leadsMap.get(cleanPhone)) ||
+        (cleanCust && leadsMap.get(cleanCust)) ||
+        (cleanId && leadsMap.get(cleanId)) ||
+        '';
+
       const isClosed = (
         rawStatus === 'no followup' ||
         rawStatus === 'closed' ||
@@ -598,14 +639,15 @@ export default function FollowupsPage() {
 
       return {
         ...f,
+        company: resolvedCompany,
         _isClosed: isClosed,
         _searchIndex: [
           f.customerName,
+          resolvedCompany,
           f.notes,
           f.phone,
           f.inquiryNo,
           f.assignedTo,
-          f.company,
           f.email
         ].filter(Boolean).join(' ').toLowerCase()
       };
@@ -886,15 +928,16 @@ export default function FollowupsPage() {
 
   const handleExportCSV = () => {
     if (!filteredFollowups || filteredFollowups.length === 0) return;
-    const headers = ["Customer Name", "Phone", "Followup Date", "Type", "Next Followup", "Executive", "Status", "Notes", "Inquiry No"];
+    const headers = ["Customer Name", "Company", "Phone", "Followup Date", "Status", "Next Followup", "Executive", "Type", "Notes", "Inquiry No"];
     const rows = filteredFollowups.map(f => [
       `"${f.customerName || ''}"`,
+      `"${f.company || ''}"`,
       `"${f.phone || ''}"`,
       `"${f.followupDate || ''}"`,
-      `"${f.followupType || ''}"`,
+      `"${f.status || ''}"`,
       `"${f.nextFollowupDate || ''}"`,
       `"${f.assignedTo || ''}"`,
-      `"${f.status || ''}"`,
+      `"${f.followupType || ''}"`,
       `"${(f.notes || '').replace(/"/g, '""')}"`,
       `"${f.inquiryNo || ''}"`
     ]);
@@ -1279,13 +1322,13 @@ export default function FollowupsPage() {
                     <tr>
                       <th>ACTION</th>
                       <th>FOLLOWUP DATE</th>
-                      <th>FOLLOWUP TYPE</th>
-                      <th>CUSTOMER NAME</th>
+                      <th>STATUS</th>
+                      <th className="fup-th-cust">COMPANY / CUSTOMER</th>
                       <th>MOBILE NO</th>
                       <th>NEXT FOLLOWUP</th>
                       <th className="fup-th-notes">NOTES</th>
                       <th>LEAD / INQUIRY NO</th>
-                      <th>STATUS</th>
+                      <th>FOLLOWUP TYPE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1451,9 +1494,17 @@ export default function FollowupsPage() {
                         </span>
                       </div>
 
-                      <div style={{ fontWeight: '800', fontSize: '1rem', color: '#0F172A' }}>
-                        {item.customerName}
+                      <div className="cust-primary-company" style={{ fontSize: '1.02rem' }} title={item.company || item.customerName}>
+                        <Building2 size={15} className="cust-company-icon" />
+                        <span>{item.company || item.customerName}</span>
                       </div>
+
+                      {item.company && item.customerName && (
+                        <div className="cust-secondary-person" style={{ fontSize: '0.88rem', marginBottom: '3px' }} title={item.customerName}>
+                          <User size={13} className="cust-person-icon" />
+                          <span>{item.customerName}</span>
+                        </div>
+                      )}
 
                       <div style={{ fontSize: '0.82rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Phone size={12} style={{ color: '#2563EB' }} /> <a href={`tel:${item.phone}`} style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>{item.phone}</a> | Exec: {item.assignedTo || 'Unassigned'}

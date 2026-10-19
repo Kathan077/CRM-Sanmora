@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/user.service';
 import { getStoredLeads, getStoredFollowups, saveLead, updateLead, deleteLead, transferLead, bulkTransferLeads, filterByRole, getSubordinateUsers, isAdminUser, syncCrmStoreWithBackendApi } from '../../utils/crmStore';
 import {
-  Users, Plus, Search, Mail, Phone, Building2, Trash2, Edit,
+  Users, User, Plus, Search, Mail, Phone, Building2, Trash2, Edit,
   CheckCircle, CheckCircle2, Sparkles, Filter, RefreshCw, X, Hash, MapPin,
   TrendingUp, Flame, Snowflake, Target, ChevronRight, UserCheck, ChevronDown, Check,
   ShieldCheck, LayoutGrid, List, Globe, ExternalLink,
@@ -222,12 +222,12 @@ const CustomerCard = React.memo(function CustomerCard({
                 className="cp-card-checkbox"
               />
             </div>
-            <div className="cp-card-avatar">{getInitials(displayName)}</div>
+            <div className="cp-card-avatar">{getInitials(displayCompany && displayCompany !== 'Individual Client' ? displayCompany : displayName)}</div>
             <div className="cp-card-hdr-info">
-              <h3 className="cp-card-name">{displayName}</h3>
-              <div className="cp-card-company">
-                <Building2 size={13} className="cp-card-ico" />
-                <span>{displayCompany}</span>
+              <h3 className="cp-card-name" title={displayCompany}>{displayCompany}</h3>
+              <div className="cp-card-company" title={displayName}>
+                <User size={13} className="cp-card-ico" />
+                <span>{displayName}</span>
               </div>
             </div>
             <span className={`cp-status-badge ${sBadge.cls}`}>

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   UserPlus, User, Building2, Mail, Phone, Briefcase,
   Navigation, MapPin, Globe, Hash, ShieldCheck, Snowflake,
   Flame, Target, UserCheck, FileText, AlertTriangle,
   CheckCircle, CheckCircle2, X, Sparkles, Calendar, Clock, Tag,
   TrendingUp, AlertCircle, Layers, ArrowRight, Star,
-  MessageSquare, Video, Handshake, Check, Users
+  MessageSquare, Video, Handshake, Check, Users, ChevronDown
 } from 'lucide-react';
 import { getCombinedEmployees, getNextInquiryNo, getDealRevenueSplit } from '../../utils/crmStore';
 import {
@@ -932,10 +932,10 @@ export default function LeadCustomerModal({
                       <div className="lcm-input-wrap">
                         <div className="lcm-ico-badge"><Clock size={14} /></div>
                         <input
-                          type="time" className="lcm-input lcm-input-has-badge lcm-picker-input"
-                          value={formData.preferredTime}
+                          type="time"
+                          className="lcm-input lcm-input-has-badge lcm-time-input-clean"
+                          value={formData.preferredTime || '14:00'}
                           onChange={e => handleChange('preferredTime', e.target.value)}
-                          onClick={e => { try { e.target.showPicker(); } catch(err){} }}
                         />
                       </div>
                     </div>

@@ -1122,21 +1122,31 @@
   letter-spacing: 0.02em;
 }
 
+.fup-th-cust {
+  text-align: left !important;
+  padding-left: 20px !important;
+}
+
+.fup-td-cust {
+  text-align: left !important;
+  padding-left: 20px !important;
+}
+
 .customer-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   text-align: left;
 }
 
 .cust-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%);
   color: #FFFFFF;
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 700;
+  font-size: 0.84rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1147,24 +1157,74 @@
 .cust-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+}
+
+.cust-primary-company {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #0F172A;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.cust-company-icon {
+  color: #2563EB;
+  flex-shrink: 0;
+}
+
+.cust-secondary-person {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cust-person-icon {
+  color: #64748B;
+  flex-shrink: 0;
 }
 
 .cust-name-txt {
   font-weight: 700;
   color: #0F172A;
-  font-size: 0.86rem;
+  font-size: 0.95rem;
+}
+
+.cust-company-txt {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2563EB;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cust-company-ico {
+  color: #2563EB;
+  flex-shrink: 0;
 }
 
 .cust-exec-txt {
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   color: #64748B;
   font-weight: 600;
   background: #F1F5F9;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   display: inline-block;
   width: max-content;
+  margin-top: 2px;
 }
 
 .mobile-cell {
@@ -2118,9 +2178,39 @@
   background: rgba(30, 41, 59, 0.8) !important;
 }
 
+[data-theme='dark'] .cust-primary-company,
+.dark .cust-primary-company {
+  color: #F8FAFC !important;
+}
+
+[data-theme='dark'] .cust-company-icon,
+.dark .cust-company-icon {
+  color: #60A5FA !important;
+}
+
+[data-theme='dark'] .cust-secondary-person,
+.dark .cust-secondary-person {
+  color: #CBD5E1 !important;
+}
+
+[data-theme='dark'] .cust-person-icon,
+.dark .cust-person-icon {
+  color: #94A3B8 !important;
+}
+
 [data-theme='dark'] .cust-name-txt,
 .dark .cust-name-txt {
   color: #FFFFFF !important;
+}
+
+[data-theme='dark'] .cust-company-txt,
+.dark .cust-company-txt {
+  color: #60A5FA !important;
+}
+
+[data-theme='dark'] .cust-company-ico,
+.dark .cust-company-ico {
+  color: #60A5FA !important;
 }
 
 [data-theme='dark'] .cust-exec-txt,
