@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAllCustomers,
   getAllCustomersUnfiltered,
+  getNextInquiryNumber,
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -14,6 +15,7 @@ const { protect } = require('../middleware/auth.middleware');
 router.use(protect);
 
 router.get('/all-records', getAllCustomersUnfiltered);
+router.get('/next-inquiry-no', getNextInquiryNumber);
 router.post('/bulk-transfer', bulkTransferCustomers);
 
 router

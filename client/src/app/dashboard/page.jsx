@@ -42,19 +42,19 @@ export default function DashboardPage() {
 
   // Data States
   const [followups, setFollowups] = useState([]);
-  const [tasks, setTasks]         = useState([]);
-  const [leads, setLeads]         = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [leads, setLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [roles, setRoles]         = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [deferredReady, setDeferredReady] = useState(false);
 
   // Dashboard Control Desk Filters
-  const [fupTab, setFupTab]       = useState('today'); // 'today' | 'missed' | 'all' | 'upcoming' | 'closed'
+  const [fupTab, setFupTab] = useState('today'); // 'today' | 'missed' | 'all' | 'upcoming' | 'closed'
   const [quickTaskTitle, setQuickTaskTitle] = useState('');
-  const [editingTaskId, setEditingTaskId]   = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
-  const [expandedNotes, setExpandedNotes]   = useState({});
+  const [expandedNotes, setExpandedNotes] = useState({});
 
   const toggleNoteExpand = (id) => {
     setExpandedNotes(prev => ({ ...prev, [id]: !prev[id] }));
@@ -67,8 +67,8 @@ export default function DashboardPage() {
 
   // Edit Task Modal State
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [editingTask, setEditingTask]     = useState(null);
-  const [taskForm, setTaskForm]           = useState({
+  const [editingTask, setEditingTask] = useState(null);
+  const [taskForm, setTaskForm] = useState({
     title: '',
     category: 'FollowUp Call',
     priority: 'Hot',
@@ -78,7 +78,7 @@ export default function DashboardPage() {
     notes: '',
     subtasks: []
   });
-  const [subtaskInput, setSubtaskInput]   = useState('');
+  const [subtaskInput, setSubtaskInput] = useState('');
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const formattedDateStr = useMemo(
@@ -95,11 +95,11 @@ export default function DashboardPage() {
 
   const loadDashboardAllData = useCallback((empList = employees) => {
     if (!user) return;
-    const rawFups  = getStoredFollowups();
+    const rawFups = getStoredFollowups();
     const rawTasks = getStoredTasks();
     const rawLeads = getStoredLeads();
 
-    const scopedFups  = filterByRole(rawFups, user, empList);
+    const scopedFups = filterByRole(rawFups, user, empList);
     const scopedTasks = filterByRole(rawTasks, user, empList);
     const scopedLeads = filterByRole(rawLeads, user, empList);
 
@@ -123,11 +123,11 @@ export default function DashboardPage() {
         if (!isMounted) return;
 
         const empData = usersRes.data || [];
-        const rawFups  = getStoredFollowups();
+        const rawFups = getStoredFollowups();
         const rawTasks = getStoredTasks();
         const rawLeads = getStoredLeads();
 
-        const scopedFups  = filterByRole(rawFups, user, empData);
+        const scopedFups = filterByRole(rawFups, user, empData);
         const scopedTasks = filterByRole(rawTasks, user, empData);
         const scopedLeads = filterByRole(rawLeads, user, empData);
 
@@ -147,12 +147,26 @@ export default function DashboardPage() {
 
     if (!authLoading && userId) {
       loadData();
+      syncCrmStoreWithBackendApi().then(() => {
+        if (isMounted) loadData();
+      });
+    }
+
+    const handleStoreUpdate = () => {
+      if (isMounted) loadDashboardAllData();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('crm_store_updated', handleStoreUpdate);
     }
 
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('crm_store_updated', handleStoreUpdate);
+      }
     };
-  }, [userId, authLoading]);
+  }, [userId, authLoading, loadDashboardAllData]);
 
   // Handle Quick Task Add
   const handleAddQuickTask = useCallback((e) => {
@@ -286,7 +300,7 @@ export default function DashboardPage() {
       description: taskForm.notes || '',
       checklist: taskForm.subtasks || []
     };
-    
+
     if (editingTask) {
       updateTask(editingTask.id, {
         ...editingTask,
@@ -302,7 +316,7 @@ export default function DashboardPage() {
         ...payload
       }, user);
     }
-    
+
     setShowTaskModal(false);
     setEditingTask(null);
     loadDashboardAllData(employees);
@@ -442,7 +456,7 @@ export default function DashboardPage() {
       <Header title="Dashboard Command Center" />
 
       <main className={`crm-main-content ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        
+
         {/* ── 1. COMPACT HERO WELCOME BANNER ── */}
         <div className="dash-hero-compact">
           <div className="dash-hero-left">
@@ -594,7 +608,7 @@ export default function DashboardPage() {
                   deskFollowups.map((fup) => {
                     const eff = resolveEffectiveAssignee(fup, todayStr);
                     const isOverdue = fup.nextFollowupDate < todayStr && fup.status === 'Active';
-                    const initials  = (fup.customerName || 'C').charAt(0).toUpperCase();
+                    const initials = (fup.customerName || 'C').charAt(0).toUpperCase();
 
                     return (
                       <div key={fup.id} className={`fup-card-vip ${isOverdue ? 'is-overdue' : ''}`}>
@@ -737,7 +751,7 @@ export default function DashboardPage() {
                             />
                             <span className="chk-box-custom" />
                           </label>
-                          
+
                           <span
                             className="todo-txt-sm"
                             onClick={() => handleOpenTaskEditModal(task)}

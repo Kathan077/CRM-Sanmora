@@ -19,7 +19,7 @@ export default function ManageFollowUpModal({
   onClose,
   customer = null,
   followup = null,
-  onSaved = () => {},
+  onSaved = () => { },
   employees = [],
   currentUser = null
 }) {
@@ -66,8 +66,11 @@ export default function ManageFollowUpModal({
   const targetCustomer = customer || followup || {};
   const customerName = targetCustomer.customerName || targetCustomer.contactPerson || targetCustomer.name || 'Unnamed Client';
   const phone = targetCustomer.phone || targetCustomer.primaryContact || '—';
-  const inquiryNo = targetCustomer.inquiryNo || '#INQ-0000';
+  const rawInq = targetCustomer.inquiryNo || '';
+  const inquiryNo = (rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000') ? rawInq : '';
+  const displayInquiryNo = inquiryNo || '#INQ-0000';
   const company = targetCustomer.company || targetCustomer.companyName || 'Enterprise Account';
+  const targetLeadId = targetCustomer._id || targetCustomer.id || targetCustomer.leadId || '';
 
   const currentUserName = currentUser?.name || currentUser?.username || 'Sanmora Main Admin';
   const currentUserId = String(currentUser?.id || currentUser?._id || 'default-admin');
@@ -79,23 +82,23 @@ export default function ManageFollowUpModal({
     : (Array.isArray(employees) && employees.length > 0 ? [...employees] : []);
   const isCurrentInList = rawEmployees.some(
     (e) => String(e._id || e.id) === currentUserId ||
-           (e.username && currentUserUsername && e.username === currentUserUsername)
+      (e.username && currentUserUsername && e.username === currentUserUsername)
   );
   const selectEmployees = isCurrentInList
     ? rawEmployees
     : [
-        ...rawEmployees,
-        {
-          _id: currentUserId, id: currentUserId,
-          name: currentUserName, username: currentUserUsername,
-          role: currentUser?.role || { name: 'Staff' }
-        }
-      ];
+      ...rawEmployees,
+      {
+        _id: currentUserId, id: currentUserId,
+        name: currentUserName, username: currentUserUsername,
+        role: currentUser?.role || { name: 'Staff' }
+      }
+    ];
 
   const currentUserOption = selectEmployees.find(
     (emp) => String(emp._id || emp.id) === currentUserId ||
-             (emp.username && currentUserUsername && emp.username === currentUserUsername) ||
-             (emp.name || '').toLowerCase() === currentUserName.toLowerCase()
+      (emp.username && currentUserUsername && emp.username === currentUserUsername) ||
+      (emp.name || '').toLowerCase() === currentUserName.toLowerCase()
   ) || selectEmployees[0];
 
   const defaultAssignedId = currentUserOption ? String(currentUserOption._id || currentUserOption.id) : currentUserId;
@@ -121,7 +124,7 @@ export default function ManageFollowUpModal({
   useEffect(() => {
     if (isOpen && targetCustomer) {
       const historyRecords = getCustomerFollowupHistory(
-        targetCustomer.id || targetCustomer.leadId,
+        targetLeadId,
         customerName,
         inquiryNo
       );
@@ -181,7 +184,7 @@ export default function ManageFollowUpModal({
     );
     const assignedName = assignedEmp ? (assignedEmp.name || assignedEmp.username) : form.assignedTo || defaultAssignedName;
     // Store BOTH the real backend ID (if available) and the name/username for reliable matching
-    const assignedId   = assignedEmp ? String(assignedEmp._id || assignedEmp.id || '') : form.assignedToId;
+    const assignedId = assignedEmp ? String(assignedEmp._id || assignedEmp.id || '') : form.assignedToId;
     const assignedUsername = assignedEmp ? (assignedEmp.username || '') : '';
 
     const isColdOrClosed = form.leadStatus === 'Cold' || form.leadStatus === 'Deal Cancelled' || form.leadStatus === 'Deal Done' || form.leadStatus === 'Closed';
@@ -192,7 +195,8 @@ export default function ManageFollowUpModal({
     }
 
     const payload = {
-      leadId: targetCustomer.id || targetCustomer.leadId || `lead-${Date.now()}`,
+      _id: (followup?._id && !String(followup._id).startsWith('fup-')) ? followup._id : undefined,
+      leadId: targetLeadId || `lead-${Date.now()}`,
       inquiryNo: inquiryNo,
       customerName: customerName,
       phone: phone,
@@ -218,7 +222,7 @@ export default function ManageFollowUpModal({
 
     // Refresh local history
     const updatedHistory = getCustomerFollowupHistory(
-      targetCustomer.id || targetCustomer.leadId,
+      targetLeadId,
       customerName,
       inquiryNo
     );
@@ -257,7 +261,7 @@ export default function ManageFollowUpModal({
             <div>
               <div className="mfu-hdr-badges">
                 <span className="mfu-badge-pro"><Sparkles size={11} /> TELECALLER CRM</span>
-                <span className="mfu-badge-inquiry">{inquiryNo}</span>
+                <span className="mfu-badge-inquiry">{displayInquiryNo}</span>
               </div>
               <h2 className="mfu-hdr-title">Manage TeleCaller External FollowUp</h2>
               <p className="mfu-hdr-sub">Record call outcomes, schedule next actions, and trace communication logs</p>
@@ -465,7 +469,7 @@ export default function ManageFollowUpModal({
                       />
                     </div>
                     <span className="mfu-helper-text" style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '4px', display: 'block' }}>
-                       After this date, the follow-up automatically reverts back to your account.
+                      After this date, the follow-up automatically reverts back to your account.
                     </span>
                   </div>
                 );
@@ -502,11 +506,11 @@ export default function ManageFollowUpModal({
                 <div className="mfu-cc-avatar">
                   {customerName
                     ? customerName
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
                     : 'CL'}
                 </div>
                 <div className="mfu-cc-info">

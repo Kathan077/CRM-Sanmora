@@ -1,6 +1,7 @@
 import { customerService } from '../services/customer.service';
 import { followupService } from '../services/followup.service';
 import { taskService } from '../services/task.service';
+import { ledgerService } from '../services/ledger.service';
 
 // Local Storage Store for CRM Leads & Followups
 
@@ -148,12 +149,20 @@ export const getStoredFollowups = () => {
     const consolidatedMap = new Map();
 
     cleaned.forEach(item => {
-      // Prioritize inquiryNo as the primary business key, then leadId, then customerName + phone
-      const key = (item.inquiryNo && String(item.inquiryNo).trim())
-        ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
-        : (item.leadId && String(item.leadId).trim())
-          ? `lead_${String(item.leadId).trim()}`
-          : (item.customerName && item.phone ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}` : `id_${item._id || item.id}`);
+      // Prioritize explicit unique leadId or MongoDB _id, then valid non-placeholder inquiryNo
+      const rawInq = String(item.inquiryNo || '').trim();
+      const isValidInq = rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000';
+      const cleanLeadId = String(item.leadId || '').trim();
+      const isValidLeadId = cleanLeadId && !cleanLeadId.startsWith('lead-') && cleanLeadId !== 'null' && cleanLeadId !== 'undefined';
+      const cleanMongoId = String(item._id || (item.id && !String(item.id).startsWith('fup-') ? item.id : '')).trim();
+
+      const key = cleanMongoId
+        ? `mongo_${cleanMongoId}`
+        : (isValidLeadId
+          ? `lead_${cleanLeadId}`
+          : (isValidInq
+            ? `inq_${rawInq.toLowerCase()}`
+            : `id_${item.id || item._id || Math.random().toString(36).substring(2, 9)}`));
 
       if (!consolidatedMap.has(key)) {
         const initialHistory = Array.isArray(item.history) && item.history.length > 0 ? item.history : [{
@@ -171,20 +180,15 @@ export const getStoredFollowups = () => {
         }];
 
         const rawLeadStatus = String(item.leadStatus || '').toLowerCase();
-        const rawNotes = String(item.notes || '').toLowerCase();
         const isInactive = 
           rawLeadStatus.includes('cold') || 
           rawLeadStatus.includes('done') || 
           rawLeadStatus.includes('cancel') || 
           rawLeadStatus.includes('closed') ||
-          rawNotes.includes('deal done') ||
-          rawNotes.includes('deal cancelled') ||
-          rawNotes.includes('cold lead');
+          item.status === 'No FollowUp';
 
-        let effectiveLeadStatus = item.leadStatus || 'Warm';
-        if (rawNotes.includes('deal done') || rawLeadStatus.includes('done')) effectiveLeadStatus = 'Deal Done';
-        else if (rawNotes.includes('deal cancelled') || rawLeadStatus.includes('cancel')) effectiveLeadStatus = 'Deal Cancelled';
-        else if (rawNotes.includes('cold') || rawLeadStatus.includes('cold')) effectiveLeadStatus = 'Cold';
+        // Respect explicit user status! Never overwrite status by reading words inside notes!
+        const effectiveLeadStatus = item.leadStatus || 'Warm';
 
         const finalId = item._id || item.id || (item.leadId ? `fup-${item.leadId}` : `fup-${Date.now()}`);
 
@@ -193,7 +197,7 @@ export const getStoredFollowups = () => {
           id: finalId,
           _id: item._id || (item.id && !String(item.id).startsWith('fup-') ? item.id : undefined),
           leadId: item.leadId || item.id,
-          inquiryNo: item.inquiryNo || getNextInquiryNo(),
+          inquiryNo: item.inquiryNo || '',
           customerName: item.customerName || item.contactPerson || 'Unnamed Customer',
           phone: item.phone || item.primaryContact || '—',
           company: item.company || item.companyName || 'Enterprise Account',
@@ -215,7 +219,7 @@ export const getStoredFollowups = () => {
       } else {
         const existing = consolidatedMap.get(key);
         
-        // Merge history
+        // Merge history without duplicating identical entries
         if (Array.isArray(item.history) && item.history.length > 0) {
           item.history.forEach(h => {
             if (!existing.history.some(ex => ex.id === h.id || (ex.notes === h.notes && ex.followupDate === h.followupDate))) {
@@ -245,8 +249,9 @@ export const getStoredFollowups = () => {
         if (item.followupDate >= existing.followupDate) {
           existing.followupDate = item.followupDate;
           existing.followupType = item.followupType || existing.followupType;
-          existing.notes = item.notes || existing.notes;
+          if (item.notes) existing.notes = item.notes;
           existing.nextFollowupDate = item.nextFollowupDate || existing.nextFollowupDate;
+          if (item.leadStatus) existing.leadStatus = item.leadStatus;
           existing.assignedTo = item.assignedTo || existing.assignedTo;
           existing.assignedToId = item.assignedToId || existing.assignedToId;
           existing.status = item.status || existing.status;
@@ -319,10 +324,11 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
 
   _inFlightSyncPromise = (async () => {
     try {
-      const [cRes, fRes, tRes] = await Promise.all([
+      const [cRes, fRes, tRes, lRes] = await Promise.all([
         customerService.getAllCustomers(params).catch(() => null),
         followupService.getAllFollowups(params).catch(() => null),
-        taskService.getAllTasks(params).catch(() => null)
+        taskService.getAllTasks(params).catch(() => null),
+        ledgerService.getAllLedgers().catch(() => null)
       ]);
 
       // Check if the current user running sync is an Admin
@@ -334,17 +340,23 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
 
       const isAdmin = activeUser ? isAdminUser(activeUser) : false;
 
-      // Helper: Deduplicate a follow-up list by business keys (inquiryNo, leadId, customerName+phone)
+      // Helper: Deduplicate a follow-up list by unique identifiers (Mongo _id, unique leadId, verified inquiryNo)
       const deduplicateFollowupsList = (list) => {
         const map = new Map();
         for (const item of list) {
-          const key = (item.inquiryNo && String(item.inquiryNo).trim())
-            ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
-            : (item.leadId && String(item.leadId).trim())
-              ? `lead_${String(item.leadId).trim()}`
-              : (item.customerName && item.phone)
-                ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}`
-                : `id_${item._id || item.id}`;
+          const rawInq = String(item.inquiryNo || '').trim();
+          const isValidInq = rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000';
+          const cleanLeadId = String(item.leadId || '').trim();
+          const isValidLeadId = cleanLeadId && !cleanLeadId.startsWith('lead-') && cleanLeadId !== 'null' && cleanLeadId !== 'undefined';
+          const cleanMongoId = String(item._id || (item.id && !String(item.id).startsWith('fup-') ? item.id : '')).trim();
+
+          const key = cleanMongoId
+            ? `mongo_${cleanMongoId}`
+            : (isValidLeadId
+              ? `lead_${cleanLeadId}`
+              : (isValidInq
+                ? `inq_${rawInq.toLowerCase()}`
+                : `id_${item.id || Math.random().toString(36).substring(2, 9)}`));
 
           if (!map.has(key)) {
             map.set(key, { ...item, _id: item._id || item.id, id: item._id || item.id });
@@ -444,6 +456,14 @@ export const syncCrmStoreWithBackendApi = async (params = null) => {
           _cachedTasks = finalTasks;
           safeLocalStorageSet(TASKS_KEY, finalTasks);
         }
+      }
+
+      // 4. Ledger Accounts Cloud Sync
+      if (lRes && lRes.success && lRes.data && typeof lRes.data === 'object') {
+        const localLedger = getStoredLedgerAccounts();
+        const mergedLedger = { ...lRes.data, ...localLedger };
+        _cachedLedgerAccounts = mergedLedger;
+        safeLocalStorageSet(LEDGER_KEY, mergedLedger);
       }
 
       notifyStoreUpdated();
@@ -588,10 +608,13 @@ export const transferLead = (leadId, targetEmployee, currentUser = null, transfe
   const todayStr = new Date().toISOString().split('T')[0];
 
   const updatedFollowups = currentFollowups.map((f) => {
-    if (
-      (targetLead && ((f.leadId && (f.leadId === targetLead.id || f.leadId === targetLead._id)) || (f.inquiryNo && f.inquiryNo === targetLead.inquiryNo))) ||
-      f.id === leadId || f.leadId === leadId
-    ) {
+    const rawTargetInq = String(targetLead?.inquiryNo || '').trim();
+    const isValidTargetInq = rawTargetInq && rawTargetInq !== '#INQ-0000' && rawTargetInq !== 'INQ-0000' && rawTargetInq.toLowerCase() !== '#inq-0000';
+    const isTarget =
+      (targetLead && ((f.leadId && (f.leadId === targetLead.id || f.leadId === targetLead._id)) || (isValidTargetInq && f.inquiryNo === targetLead.inquiryNo))) ||
+      f.id === leadId || f.leadId === leadId || f._id === leadId;
+
+    if (isTarget) {
       const prevOwnerName = f.assignedTo || f.createdBy || senderName;
       const prevOwnerId = f.assignedToId || f.createdById || senderId;
 
@@ -707,13 +730,17 @@ export const bulkTransferLeads = (leadIds = [], targetEmployee, currentUser = nu
   const currentFollowups = getStoredFollowups();
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const matchedInquiryNos = new Set(matchedLeads.map(l => l.inquiryNo).filter(Boolean));
+  const matchedInquiryNos = new Set(
+    matchedLeads
+      .map(l => String(l.inquiryNo || '').trim())
+      .filter(n => n && n !== '#INQ-0000' && n !== 'INQ-0000' && n.toLowerCase() !== '#inq-0000')
+  );
 
   const updatedFollowups = currentFollowups.map((f) => {
     const fLeadId = String(f.leadId || f.id || '');
-    const fInquiry = f.inquiryNo || '';
+    const fInquiry = String(f.inquiryNo || '').trim();
 
-    if (idSet.has(fLeadId) || matchedInquiryNos.has(fInquiry)) {
+    if (idSet.has(fLeadId) || (fInquiry && matchedInquiryNos.has(fInquiry))) {
       const prevOwnerName = f.assignedTo || f.createdBy || senderName;
       const prevOwnerId = f.assignedToId || f.createdById || senderId;
 
@@ -926,33 +953,44 @@ export const createOrUpdateFollowupThreadFromLead = (lead, currentUser = null) =
   const creatorName = currentUser?.name || currentUser?.username || lead.createdBy || lead.assignedTo || 'Staff';
   const creatorId = String(currentUser?.id || currentUser?._id || lead.createdById || lead.assignedToId || '');
 
-  // Find existing thread for this lead
-  const existingThreadIndex = currentFollowups.findIndex(
-    f => (f.leadId && f.leadId === lead.id) || (f.inquiryNo && f.inquiryNo === lead.inquiryNo)
-  );
+  const rawLeadInq = String(lead.inquiryNo || '').trim();
+  const isValidLeadInq = rawLeadInq && rawLeadInq !== '#INQ-0000' && rawLeadInq !== 'INQ-0000' && rawLeadInq.toLowerCase() !== '#inq-0000';
+  const cleanLeadId = String(lead.id || lead._id || '').trim();
 
-  const initialNote = lead.followupNotes || `${(lead.status || 'WARM').toUpperCase()} lead profile updated for ${lead.customerName || lead.contactPerson || 'Customer'}`;
+  // Find existing thread for this lead by exact unique ID or valid inquiryNo
+  const existingThreadIndex = currentFollowups.findIndex(f => {
+    if (cleanLeadId && (f.leadId === cleanLeadId || f.id === cleanLeadId || f._id === cleanLeadId)) return true;
+    if (isValidLeadInq && f.inquiryNo && String(f.inquiryNo).trim().toLowerCase() === rawLeadInq.toLowerCase()) return true;
+    return false;
+  });
 
   let updatedFollowups;
   if (existingThreadIndex >= 0) {
     const existing = currentFollowups[existingThreadIndex];
-    
-    // Add history item if lead has new followup notes
-    const newHistoryItem = {
-      id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      followupDate: todayStr,
-      followupType: lead.followupType || existing.followupType || 'Telephonic',
-      notes: initialNote,
-      nextFollowupDate: lead.nextFollowupDate || existing.nextFollowupDate || todayStr,
-      preferredTime: lead.preferredTime || existing.preferredTime || '',
-      assignedTo: lead.assignedTo || existing.assignedTo,
-      assignedToId: lead.assignedToId || existing.assignedToId,
-      createdBy: creatorName,
-      createdById: creatorId,
-      createdAt: new Date().toISOString()
-    };
+    let history = existing.history || [];
 
-    const history = [newHistoryItem, ...(existing.history || [])];
+    // ONLY add a new history item IF the user explicitly entered new meeting/followup notes
+    // NEVER auto-create phantom history entries on Kanban moves, stage changes, or address edits!
+    const hasExplicitNewNotes = lead.followupNotes && String(lead.followupNotes).trim() && lead.followupNotes !== existing.notes;
+    if (hasExplicitNewNotes) {
+      const newHistoryItem = {
+        id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        followupDate: todayStr,
+        followupType: lead.followupType || existing.followupType || 'Telephonic',
+        notes: lead.followupNotes,
+        nextFollowupDate: lead.nextFollowupDate || existing.nextFollowupDate || todayStr,
+        preferredTime: lead.preferredTime || existing.preferredTime || '',
+        assignedTo: lead.assignedTo || existing.assignedTo,
+        assignedToId: lead.assignedToId || existing.assignedToId,
+        createdBy: creatorName,
+        createdById: creatorId,
+        createdAt: new Date().toISOString()
+      };
+      history = [newHistoryItem, ...history];
+    }
+
+    const effectiveLeadStatus = lead.leadStatus || (lead.status ? (lead.status.charAt(0).toUpperCase() + lead.status.slice(1)) : existing.leadStatus);
+    const isCold = String(lead.status || lead.leadStatus || '').toLowerCase() === 'cold';
 
     const updatedThread = {
       ...existing,
@@ -962,18 +1000,19 @@ export const createOrUpdateFollowupThreadFromLead = (lead, currentUser = null) =
       email: lead.email || existing.email,
       assignedTo: lead.assignedTo || existing.assignedTo,
       assignedToId: lead.assignedToId || existing.assignedToId,
-      followupDate: todayStr,
       followupType: lead.followupType || existing.followupType || 'Telephonic',
       nextFollowupDate: lead.nextFollowupDate || existing.nextFollowupDate || todayStr,
       preferredTime: lead.preferredTime || existing.preferredTime || '',
-      notes: initialNote,
-      status: lead.status === 'cold' ? 'No FollowUp' : 'Active',
-      closingReason: lead.status === 'cold' ? 'Closed' : '—',
+      notes: hasExplicitNewNotes ? lead.followupNotes : existing.notes,
+      leadStatus: effectiveLeadStatus,
+      status: isCold ? 'No FollowUp' : (existing.status || 'Active'),
+      closingReason: isCold ? 'Closed' : (existing.closingReason || '—'),
       history: history
     };
 
     updatedFollowups = currentFollowups.map((f, idx) => idx === existingThreadIndex ? updatedThread : f);
   } else {
+    const initialNote = lead.followupNotes || 'Lead registered in system';
     const newHistoryItem = {
       id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       followupDate: todayStr,
@@ -991,7 +1030,7 @@ export const createOrUpdateFollowupThreadFromLead = (lead, currentUser = null) =
     const newThread = {
       id: `fup-${lead.id}`,
       leadId: lead.id,
-      inquiryNo: lead.inquiryNo || getNextInquiryNo(),
+      inquiryNo: lead.inquiryNo || '',
       customerName: lead.customerName || lead.contactPerson || 'Unnamed Lead',
       phone: lead.phone || lead.primaryContact || '—',
       company: lead.company || lead.companyName || 'Enterprise Account',
@@ -1043,15 +1082,22 @@ export const addCustomerFollowup = (fupData, currentUser = null) => {
   const loggedById = String(currentUser?.id || currentUser?._id || fupData.createdById || '');
 
   const targetLeadId = fupData.leadId || fupData.id || `lead-${Date.now()}`;
-  const targetInquiryNo = fupData.inquiryNo || getNextInquiryNo();
+  const rawTargetInq = String(fupData.inquiryNo || '').trim();
+  const isValidTargetInq = rawTargetInq && rawTargetInq !== '#INQ-0000' && rawTargetInq !== 'INQ-0000' && rawTargetInq.toLowerCase() !== '#inq-0000';
+  const targetInquiryNo = isValidTargetInq ? rawTargetInq : '';
+  const mongoTargetId = fupData._id || (fupData.id && !String(fupData.id).startsWith('fup-') ? fupData.id : null);
+  const cleanTargetLeadId = String(targetLeadId).trim();
+  const isValidCleanLeadId = cleanTargetLeadId && !cleanTargetLeadId.startsWith('lead-');
 
-  // Search existing thread by leadId, inquiryNo, or customer/phone
-  const existingThreadIndex = currentFollowups.findIndex(
-    f => (f.leadId && f.leadId === targetLeadId) ||
-         (f.inquiryNo && f.inquiryNo === targetInquiryNo) ||
-         (f.id === fupData.id) ||
-         (f.customerName?.toLowerCase() === fupData.customerName?.toLowerCase() && f.phone === fupData.phone)
-  );
+  // Search existing thread by exact unique identifiers to prevent cross-customer collisions
+  const existingThreadIndex = currentFollowups.findIndex(f => {
+    if (mongoTargetId && (f._id === mongoTargetId || f.id === mongoTargetId)) return true;
+    if (isValidCleanLeadId && (f.leadId === cleanTargetLeadId || f.id === cleanTargetLeadId || f._id === cleanTargetLeadId)) return true;
+    if (f.leadId && f.leadId === targetLeadId) return true;
+    if (isValidTargetInq && f.inquiryNo && String(f.inquiryNo).trim().toLowerCase() === rawTargetInq.toLowerCase()) return true;
+    if (fupData.id && (f.id === fupData.id || f._id === fupData.id)) return true;
+    return false;
+  });
 
   const existing = existingThreadIndex >= 0 ? currentFollowups[existingThreadIndex] : null;
 
@@ -1166,9 +1212,16 @@ export const saveFollowup = addCustomerFollowup;
 
 export const syncLeadFromFollowupThread = (thread, currentUser = null) => {
   const currentLeads = getStoredLeads();
-  const existingLeadIndex = currentLeads.findIndex(
-    l => l.id === thread.leadId || l.inquiryNo === thread.inquiryNo
-  );
+  const rawThreadInq = String(thread.inquiryNo || '').trim();
+  const isValidThreadInq = rawThreadInq && rawThreadInq !== '#INQ-0000' && rawThreadInq !== 'INQ-0000' && rawThreadInq.toLowerCase() !== '#inq-0000';
+  const cleanThreadLeadId = String(thread.leadId || '').trim();
+
+  const existingLeadIndex = currentLeads.findIndex(l => {
+    if (cleanThreadLeadId && (l.id === cleanThreadLeadId || l._id === cleanThreadLeadId)) return true;
+    if (isValidThreadInq && l.inquiryNo && String(l.inquiryNo).trim().toLowerCase() === rawThreadInq.toLowerCase()) return true;
+    if (thread.phone && l.phone && thread.phone.replace(/\D/g, '') === l.phone.replace(/\D/g, '') && thread.phone.replace(/\D/g, '').length === 10) return true;
+    return false;
+  });
 
   let mappedStatus = 'warm';
   if (thread.leadStatus) {
@@ -1183,33 +1236,33 @@ export const syncLeadFromFollowupThread = (thread, currentUser = null) => {
     mappedStatus = 'cold';
   }
 
+  const existing = existingLeadIndex >= 0 ? currentLeads[existingLeadIndex] : null;
+
   const updatedLeadData = {
-    id: thread.leadId || `lead-${Date.now()}`,
-    inquiryNo: thread.inquiryNo,
-    customerName: thread.customerName,
-    contactPerson: thread.customerName,
-    company: thread.company || 'Enterprise Account',
-    phone: thread.phone,
-    email: thread.email || '',
-    assignedTo: thread.assignedTo,
-    assignedToId: thread.assignedToId,
-    assignedToUsername: thread.assignedToUsername || '',
-    assignedUntilDate: thread.assignedUntilDate || null,
-    originalAssignerId: thread.originalAssignerId || '',
-    originalAssignerName: thread.originalAssignerName || '',
-    createdBy: thread.createdBy,
-    createdById: thread.createdById,
+    ...(existing || {}),
+    id: existing?.id || thread.leadId || `lead-${Date.now()}`,
+    inquiryNo: isValidThreadInq ? thread.inquiryNo : (existing?.inquiryNo || ''),
+    customerName: thread.customerName || existing?.customerName || '',
+    contactPerson: thread.customerName || existing?.contactPerson || '',
+    company: thread.company || existing?.company || 'Enterprise Account',
+    phone: thread.phone || existing?.phone || '—',
+    email: thread.email || existing?.email || '',
+    assignedTo: thread.assignedTo || existing?.assignedTo || '',
+    assignedToId: thread.assignedToId || existing?.assignedToId || '',
+    assignedToUsername: thread.assignedToUsername || existing?.assignedToUsername || '',
+    assignedUntilDate: thread.assignedUntilDate !== undefined ? thread.assignedUntilDate : (existing?.assignedUntilDate || null),
+    createdBy: existing?.createdBy || thread.createdBy,
+    createdById: existing?.createdById || thread.createdById,
     nextFollowupDate: thread.nextFollowupDate,
     preferredTime: thread.preferredTime,
     followupType: thread.followupType,
-    followupNotes: thread.notes,
+    followupNotes: thread.notes || existing?.followupNotes || '',
     leadStatus: thread.leadStatus || mappedStatus,
     status: mappedStatus
   };
 
   let updatedLeads;
   if (existingLeadIndex >= 0) {
-    const existing = currentLeads[existingLeadIndex];
     const targetCustomer = { ...existing, ...updatedLeadData };
     updatedLeads = currentLeads.map((l, idx) => idx === existingLeadIndex ? targetCustomer : l);
 
@@ -1220,6 +1273,10 @@ export const syncLeadFromFollowupThread = (thread, currentUser = null) => {
       }).catch(e => console.warn('[MongoDB Customer Update Sync Error]:', e.message));
     }
   } else {
+    // Only create a new customer if this is a real customer with a valid name
+    if (!thread.customerName || thread.customerName === 'Unnamed Customer' || thread.customerName === 'Unnamed Lead') {
+      return;
+    }
     const newCust = { ...updatedLeadData, createdAt: new Date().toISOString() };
     updatedLeads = [newCust, ...currentLeads];
 
@@ -1312,14 +1369,13 @@ export const deleteAllFollowups = () => {
 
 export const deleteFollowupThreadByLeadId = (leadId, inquiryNo = '', phone = '', customerName = '') => {
   const current = getStoredFollowups();
-  const normPhone = (phone || '').replace(/\D/g, '');
-  const normName = (customerName || '').toLowerCase().trim();
+  const rawInq = String(inquiryNo || '').trim();
+  const isValidInq = rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000';
+  const cleanLeadId = String(leadId || '').trim();
 
   const targets = current.filter(f => {
-    if (leadId && (f.leadId === leadId || f.id === leadId || f.id === `fup-${leadId}`)) return true;
-    if (inquiryNo && f.inquiryNo === inquiryNo) return true;
-    if (normPhone && f.phone && String(f.phone).replace(/\D/g, '') === normPhone) return true;
-    if (normName && f.customerName && String(f.customerName).toLowerCase().trim() === normName) return true;
+    if (cleanLeadId && (f.leadId === cleanLeadId || f.id === cleanLeadId || f._id === cleanLeadId || f.id === `fup-${cleanLeadId}`)) return true;
+    if (isValidInq && f.inquiryNo && String(f.inquiryNo).trim().toLowerCase() === rawInq.toLowerCase()) return true;
     return false;
   });
 
@@ -1344,10 +1400,14 @@ export const deleteFollowupThreadByLeadId = (leadId, inquiryNo = '', phone = '',
 
 export const getCustomerFollowupHistory = (leadId, customerName = '', inquiryNo = '') => {
   const followups = getStoredFollowups();
+  const rawInq = String(inquiryNo || '').trim();
+  const isValidInq = rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000';
+  const cleanLeadId = String(leadId || '').trim();
+
   const thread = followups.find((f) => {
-    if (leadId && (f.leadId === leadId || f.id === leadId)) return true;
-    if (inquiryNo && f.inquiryNo === inquiryNo) return true;
-    if (customerName && f.customerName?.toLowerCase() === customerName.toLowerCase()) return true;
+    if (cleanLeadId && (f.leadId === cleanLeadId || f.id === cleanLeadId || f._id === cleanLeadId)) return true;
+    if (isValidInq && f.inquiryNo && String(f.inquiryNo).trim().toLowerCase() === rawInq.toLowerCase()) return true;
+    if (!cleanLeadId && !isValidInq && customerName && f.customerName?.toLowerCase().trim() === customerName.toLowerCase().trim()) return true;
     return false;
   });
 
@@ -1888,8 +1948,17 @@ export const saveLedgerAccount = (clientId, accountData) => {
   };
 
   store[clientId] = updatedAccount;
-  localStorage.setItem(LEDGER_KEY, JSON.stringify(store));
+  safeLocalStorageSet(LEDGER_KEY, store);
   _cachedLedgerAccounts = store;
+
+  // Persist asynchronously to MongoDB backend
+  if (clientId && !String(clientId).startsWith('lead-')) {
+    ledgerService.saveLedgerAccount(clientId, updatedAccount).catch(e => {
+      console.warn('[MongoDB Ledger Save Warning]:', e.message);
+    });
+  }
+
+  notifyStoreUpdated();
   return updatedAccount;
 };
 
@@ -1901,8 +1970,17 @@ export const deleteLedgerTransaction = (clientId, txId) => {
 
   existing.instalments = existing.instalments.filter((inst) => inst.id !== txId);
   store[clientId] = existing;
-  localStorage.setItem(LEDGER_KEY, JSON.stringify(store));
+  safeLocalStorageSet(LEDGER_KEY, store);
   _cachedLedgerAccounts = store;
+
+  // Persist asynchronously to MongoDB backend
+  if (clientId && !String(clientId).startsWith('lead-')) {
+    ledgerService.deleteInstalment(clientId, txId).catch(e => {
+      console.warn('[MongoDB Ledger Delete Warning]:', e.message);
+    });
+  }
+
+  notifyStoreUpdated();
   return existing;
 };
 

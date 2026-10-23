@@ -661,9 +661,22 @@ export default function CustomersPage() {
     const fupList = getStoredFollowups();
     const map = new Map();
     fupList.forEach(f => {
-      if (f.leadId) map.set(String(f.leadId), f);
-      if (f.inquiryNo) map.set(String(f.inquiryNo), f);
-      if (f.phone) map.set(String(f.phone), f);
+      if (f.leadId) {
+        map.set(String(f.leadId), f);
+      }
+      if (f._id) {
+        map.set(String(f._id), f);
+      }
+      if (f.phone) {
+        const cleanP = String(f.phone).replace(/\D/g, '');
+        if (cleanP.length >= 10 && !map.has(`phone_${cleanP}`)) {
+          map.set(`phone_${cleanP}`, f);
+        }
+      }
+      const rawInq = String(f.inquiryNo || '').trim().toLowerCase();
+      if (rawInq && rawInq !== '#inq-0000' && rawInq !== 'inq-0000' && !map.has(`inq_${rawInq}`)) {
+        map.set(`inq_${rawInq}`, f);
+      }
     });
     return map;
   }, [followupVersion]);
@@ -1035,7 +1048,12 @@ export default function CustomersPage() {
               </div>
             ) : (
               visibleCustomers.map((c) => {
-                const matchingFup = followupsMap.get(String(c.id)) || (c.inquiryNo && followupsMap.get(String(c.inquiryNo))) || (c.phone && followupsMap.get(String(c.phone)));
+                const cleanPhone = c.phone ? String(c.phone).replace(/\D/g, '') : '';
+                const rawInq = String(c.inquiryNo || '').trim().toLowerCase();
+                const matchingFup = followupsMap.get(String(c.id)) ||
+                  (c._id && followupsMap.get(String(c._id))) ||
+                  (cleanPhone && cleanPhone.length >= 10 && followupsMap.get(`phone_${cleanPhone}`)) ||
+                  (rawInq && rawInq !== '#inq-0000' && rawInq !== 'inq-0000' && followupsMap.get(`inq_${rawInq}`));
                 return (
                   <CustomerCard
                     key={c.id}

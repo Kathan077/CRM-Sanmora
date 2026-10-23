@@ -239,6 +239,32 @@ exports.getAllCustomersUnfiltered = async (req, res) => {
   }
 };
 
+// @desc    Get next sequential inquiry number from MongoDB
+// @route   GET /api/customers/next-inquiry-no
+// @access  Private
+exports.getNextInquiryNumber = async (req, res) => {
+  try {
+    const allCustomers = await Customer.find({}, 'inquiryNo').lean();
+    let maxNum = 0;
+    for (const c of allCustomers) {
+      const match = String(c.inquiryNo || '').match(/(\d+)$/);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (val > maxNum && (val < 100 || val > 999)) maxNum = val;
+      }
+    }
+    const nextSeq = Math.max(maxNum + 1, allCustomers.length + 1);
+    const formatted = String(nextSeq).padStart(2, '0');
+    return res.status(200).json({
+      success: true,
+      inquiryNo: `JUL26-${formatted}`,
+      seq: nextSeq
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // @desc    Create new customer record in MongoDB
 // @route   POST /api/customers
 // @access  Private
@@ -247,8 +273,25 @@ exports.createCustomer = async (req, res) => {
     const creatorName = req.user.name || req.user.username || 'Staff';
     const creatorId = String(req.user._id || req.user.id || '');
 
+    let inq = String(req.body.inquiryNo || '').trim();
+    if (!inq || inq === '#INQ-0000' || inq === 'INQ-0000' || inq.toLowerCase() === '#inq-0000') {
+      const allCustomers = await Customer.find({}, 'inquiryNo').lean();
+      let maxNum = 0;
+      for (const c of allCustomers) {
+        const match = String(c.inquiryNo || '').match(/(\d+)$/);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (val > maxNum && (val < 100 || val > 999)) maxNum = val;
+        }
+      }
+      const nextSeq = Math.max(maxNum + 1, allCustomers.length + 1);
+      const formatted = String(nextSeq).padStart(2, '0');
+      inq = `JUL26-${formatted}`;
+    }
+
     const customerData = {
       ...req.body,
+      inquiryNo: inq,
       createdBy: req.body.createdBy || creatorName,
       createdById: req.body.createdById || creatorId,
       assignedTo: req.body.assignedTo || creatorName,
@@ -258,6 +301,62 @@ exports.createCustomer = async (req, res) => {
     const customer = await Customer.create(customerData);
     const obj = customer.toObject();
     const result = { ...obj, id: String(obj._id) };
+
+    // Auto-create corresponding Followup record in MongoDB if not exists
+    try {
+      const existingFup = await Followup.findOne({
+        $or: [
+          { leadId: String(customer._id) },
+          { leadId: `lead-${customer._id}` }
+        ]
+      });
+      if (!existingFup) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const initialNotes = req.body.followupNotes || req.body.notes || 'Customer registered in system';
+        const fupType = req.body.followupType || 'Telephonic';
+        const nextDate = req.body.nextFollowupDate || customer.nextFollowupDate || todayStr;
+        const prefTime = req.body.preferredTime || customer.preferredTime || '14:00';
+        const leadSt = customer.leadStatus || customer.status || 'Warm';
+        const isCold = String(customer.status || customer.leadStatus || '').toLowerCase() === 'cold';
+
+        await Followup.create({
+          leadId: String(customer._id),
+          inquiryNo: customer.inquiryNo || '',
+          customerName: customer.customerName || customer.contactPerson || 'Customer',
+          company: customer.company || customer.companyName || 'Enterprise Account',
+          phone: customer.phone || customer.primaryContact || '',
+          email: customer.email || '',
+          assignedTo: customer.assignedTo || creatorName,
+          assignedToId: customer.assignedToId || creatorId,
+          createdBy: customer.createdBy || creatorName,
+          createdById: customer.createdById || creatorId,
+          originalAssignerName: customer.originalAssignerName || '',
+          originalAssignerId: customer.originalAssignerId || '',
+          assignedUntilDate: customer.assignedUntilDate || '',
+          followupDate: req.body.followupDate || todayStr,
+          followupType: fupType,
+          nextFollowupDate: isCold ? '—' : nextDate,
+          preferredTime: isCold ? '' : prefTime,
+          notes: initialNotes,
+          leadStatus: leadSt,
+          status: isCold ? 'No FollowUp' : 'Active',
+          history: [{
+            followupDate: req.body.followupDate || todayStr,
+            followupType: fupType,
+            notes: initialNotes,
+            nextFollowupDate: isCold ? '—' : nextDate,
+            preferredTime: isCold ? '' : prefTime,
+            assignedTo: customer.assignedTo || creatorName,
+            assignedToId: customer.assignedToId || creatorId,
+            createdBy: customer.createdBy || creatorName,
+            createdById: customer.createdById || creatorId,
+            createdAt: new Date()
+          }]
+        });
+      }
+    } catch (fupErr) {
+      console.warn('[Auto-create Followup Warning]:', fupErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -292,6 +391,27 @@ exports.updateCustomer = async (req, res) => {
       runValidators: true
     });
 
+    // Also keep core customer profile fields synced to existing Followup document
+    try {
+      const updateFields = {};
+      if (req.body.customerName) updateFields.customerName = req.body.customerName;
+      if (req.body.company || req.body.companyName) updateFields.company = req.body.company || req.body.companyName;
+      if (req.body.phone || req.body.primaryContact) updateFields.phone = req.body.phone || req.body.primaryContact;
+      if (req.body.email) updateFields.email = req.body.email;
+      if (req.body.assignedTo) updateFields.assignedTo = req.body.assignedTo;
+      if (req.body.assignedToId) updateFields.assignedToId = req.body.assignedToId;
+      if (req.body.leadStatus) updateFields.leadStatus = req.body.leadStatus;
+
+      if (Object.keys(updateFields).length > 0) {
+        await Followup.updateMany(
+          { $or: [{ leadId: String(id) }, { leadId: `lead-${id}` }] },
+          { $set: updateFields }
+        );
+      }
+    } catch (fupSyncErr) {
+      console.warn('[Customer-to-Followup Sync Warning]:', fupSyncErr.message);
+    }
+
     const obj = customer.toObject();
     const result = { ...obj, id: String(obj._id) };
 
@@ -323,11 +443,12 @@ exports.deleteCustomer = async (req, res) => {
       });
     }
 
-    // CASCADE DELETE: Remove matching follow-ups from MongoDB Followup collection
-    const filterConditions = [{ leadId: id }, { leadId: `lead-${id}` }];
-    if (customer.inquiryNo) filterConditions.push({ inquiryNo: customer.inquiryNo });
-    if (customer.phone) filterConditions.push({ phone: customer.phone });
-    if (customer.customerName) filterConditions.push({ customerName: customer.customerName });
+    // CASCADE DELETE: Remove matching follow-ups from MongoDB Followup collection strictly for THIS customer/lead
+    const filterConditions = [{ leadId: String(id) }, { leadId: `lead-${id}` }];
+    const rawInq = String(customer.inquiryNo || '').trim();
+    if (rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000') {
+      filterConditions.push({ inquiryNo: rawInq });
+    }
 
     await Followup.deleteMany({ $or: filterConditions });
     await Customer.findByIdAndDelete(id);
@@ -391,11 +512,12 @@ exports.transferCustomer = async (req, res) => {
 
     await customer.save();
 
-    // Cascade update to matching Followup documents in MongoDB
-    const filterConditions = [{ leadId: id }, { leadId: `lead-${id}` }];
-    if (customer.inquiryNo) filterConditions.push({ inquiryNo: customer.inquiryNo });
-    if (customer.phone) filterConditions.push({ phone: customer.phone });
-    if (customer.customerName) filterConditions.push({ customerName: customer.customerName });
+    // Cascade update to matching Followup documents in MongoDB strictly for THIS lead
+    const filterConditions = [{ leadId: String(id) }, { leadId: `lead-${id}` }];
+    const rawCustInq = String(customer.inquiryNo || '').trim();
+    if (rawCustInq && rawCustInq !== '#INQ-0000' && rawCustInq !== 'INQ-0000' && rawCustInq.toLowerCase() !== '#inq-0000') {
+      filterConditions.push({ inquiryNo: rawCustInq });
+    }
 
     const followups = await Followup.find({ $or: filterConditions }).lean();
     if (followups.length > 0) {
@@ -531,14 +653,15 @@ exports.bulkTransferCustomers = async (req, res) => {
       }
     });
 
-    // Cascade update to matching Followup documents in MongoDB
-    const followupFilter = {
-      $or: [
-        { leadId: { $in: [...updatedCustomerIds, ...cleanLeadIds] } },
-        { inquiryNo: { $in: inquiryNos } },
-        { phone: { $in: phones } }
-      ]
-    };
+    // Cascade update to matching Followup documents in MongoDB strictly for these transferred leads
+    const cleanInquiryNos = inquiryNos.filter(n => n && n !== '#INQ-0000' && n !== 'INQ-0000' && String(n).toLowerCase() !== '#inq-0000');
+    const followupFilterConditions = [
+      { leadId: { $in: [...updatedCustomerIds, ...cleanLeadIds] } }
+    ];
+    if (cleanInquiryNos.length > 0) {
+      followupFilterConditions.push({ inquiryNo: { $in: cleanInquiryNos } });
+    }
+    const followupFilter = { $or: followupFilterConditions };
 
     const followups = await Followup.find(followupFilter).lean();
     if (followups.length > 0) {

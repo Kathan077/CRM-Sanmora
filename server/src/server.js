@@ -37,6 +37,7 @@ const announcementRoutes = require('./routes/announcement.routes');
 const customerRoutes = require('./routes/customer.routes');
 const followupRoutes = require('./routes/followup.routes');
 const taskRoutes = require('./routes/task.routes');
+const ledgerRoutes = require('./routes/ledger.routes');
 const aiRoutes = require('./routes/ai.routes');
 
 // Routes mounted with /api
@@ -47,6 +48,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/followups', followupRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/ledger', ledgerRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Fallback direct routes (in case client config omitted /api in NEXT_PUBLIC_API_URL)
@@ -57,6 +59,7 @@ app.use('/announcements', announcementRoutes);
 app.use('/customers', customerRoutes);
 app.use('/followups', followupRoutes);
 app.use('/tasks', taskRoutes);
+app.use('/ledger', ledgerRoutes);
 app.use('/ai', aiRoutes);
 
 // Fallback & Error Middlewares

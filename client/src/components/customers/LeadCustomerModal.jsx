@@ -10,6 +10,7 @@ import {
   MessageSquare, Video, Handshake, Check, Users, ChevronDown
 } from 'lucide-react';
 import { getCombinedEmployees, getNextInquiryNo, getDealRevenueSplit } from '../../utils/crmStore';
+import { customerService } from '../../services/customer.service';
 import {
   getCountries,
   getStatesByCountry,
@@ -170,6 +171,12 @@ export default function LeadCustomerModal({
           preferredTime:       '14:00',
           followupType:        'Telephonic',
         });
+
+        customerService.getNextInquiryNumber().then(res => {
+          if (res && res.success && res.inquiryNo) {
+            setFormData(prev => ({ ...prev, inquiryNo: res.inquiryNo }));
+          }
+        }).catch(() => {});
       }
     }
   }, [isOpen, initialData, currentUser]);

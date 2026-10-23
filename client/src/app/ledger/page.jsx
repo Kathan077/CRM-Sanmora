@@ -11,7 +11,8 @@ import {
   deleteLedgerTransaction,
   calculateRunningBalanceEntries,
   saveLead,
-  getDealRevenueSplit
+  getDealRevenueSplit,
+  syncCrmStoreWithBackendApi
 } from '../../utils/crmStore';
 import { userService } from '../../services/user.service';
 import LeadCustomerModal from '../../components/customers/LeadCustomerModal';
@@ -121,6 +122,15 @@ export default function LedgerPage() {
     setMounted(true);
     refreshData();
 
+    syncCrmStoreWithBackendApi().then(() => {
+      refreshData();
+    });
+
+    const handleUpdate = () => refreshData();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('crm_store_updated', handleUpdate);
+    }
+
     async function loadStaff() {
       try {
         const res = await userService.getStaffDirectory();
@@ -130,6 +140,12 @@ export default function LedgerPage() {
       } catch (err) {}
     }
     loadStaff();
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('crm_store_updated', handleUpdate);
+      }
+    };
   }, [refreshData]);
 
   // ── DEEP LINK NOTIFICATION & SPECIFIC CLIENT KHATA REDIRECT HANDLER ──

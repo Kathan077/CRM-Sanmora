@@ -36,5 +36,9 @@ export const customerService = {
 
   bulkTransferCustomers: async (data) => {
     return apiRequest('/customers/bulk-transfer', 'POST', data);
+  },
+
+  getNextInquiryNumber: async () => {
+    return apiRequest('/customers/next-inquiry-no', 'GET');
   }
 };

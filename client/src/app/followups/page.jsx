@@ -582,16 +582,22 @@ export default function FollowupsPage() {
       if (l.name) leadsMap.set(String(l.name).trim().toLowerCase(), comp);
     }
 
-    // Defensive Deduplication: Collapse multiple records for the exact same inquiry or lead into 1 unique row
+    // Defensive Deduplication: Collapse multiple records for the exact same unique lead into 1 row
     const uniqueMap = new Map();
     for (const item of scopedData) {
-      const key = (item.inquiryNo && String(item.inquiryNo).trim())
-        ? `inq_${String(item.inquiryNo).trim().toLowerCase()}`
-        : (item.leadId && String(item.leadId).trim())
-          ? `lead_${String(item.leadId).trim()}`
-          : (item.customerName && item.phone)
-            ? `cp_${String(item.customerName).toLowerCase().trim()}_${String(item.phone).trim()}`
-            : `id_${item._id || item.id}`;
+      const rawInq = String(item.inquiryNo || '').trim();
+      const isValidInq = rawInq && rawInq !== '#INQ-0000' && rawInq !== 'INQ-0000' && rawInq.toLowerCase() !== '#inq-0000';
+      const cleanLeadId = String(item.leadId || '').trim();
+      const isValidLeadId = cleanLeadId && !cleanLeadId.startsWith('lead-') && cleanLeadId !== 'null' && cleanLeadId !== 'undefined';
+      const cleanMongoId = String(item._id || (item.id && !String(item.id).startsWith('fup-') ? item.id : '')).trim();
+
+      const key = cleanMongoId
+        ? `mongo_${cleanMongoId}`
+        : (isValidLeadId
+          ? `lead_${cleanLeadId}`
+          : (isValidInq
+            ? `inq_${rawInq.toLowerCase()}`
+            : `id_${item.id || Math.random().toString(36).substring(2, 9)}`));
 
       if (!uniqueMap.has(key)) {
         uniqueMap.set(key, item);

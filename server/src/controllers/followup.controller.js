@@ -89,7 +89,7 @@ const getTeamIdentifiers = async (user) => {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   const cleanIds = teamIds.filter(Boolean);
   const cleanNames = teamNames.filter(Boolean);
@@ -218,13 +218,20 @@ exports.createFollowup = async (req, res) => {
       }];
     }
 
-    // Idempotency check: if a followup already exists for this inquiryNo or leadId, update it to prevent DB duplicates
+    // Idempotency check: only match by unique leadId or a verified, non-placeholder inquiryNo
+    const rawInq = String(followupData.inquiryNo || '').trim();
+    const isPlaceholderInq = !rawInq || rawInq === '#INQ-0000' || rawInq === 'INQ-0000' || rawInq.toLowerCase() === '#inq-0000';
     let existing = null;
-    if (followupData.inquiryNo && String(followupData.inquiryNo).trim()) {
-      existing = await Followup.findOne({ inquiryNo: String(followupData.inquiryNo).trim() });
-    }
-    if (!existing && followupData.leadId && !String(followupData.leadId).startsWith('lead-')) {
+
+    if (followupData.leadId && !String(followupData.leadId).startsWith('lead-')) {
       existing = await Followup.findOne({ leadId: followupData.leadId });
+    }
+    if (!existing && !isPlaceholderInq) {
+      existing = await Followup.findOne({ inquiryNo: rawInq });
+      // If found by inquiryNo, verify it's indeed the same customer (by phone or name) to avoid false collisions
+      if (existing && followupData.phone && existing.phone && followupData.phone.replace(/\D/g, '') !== existing.phone.replace(/\D/g, '')) {
+        existing = null; // Different customer phone, do not overwrite!
+      }
     }
 
     if (existing) {
@@ -274,7 +281,16 @@ exports.createFollowup = async (req, res) => {
 exports.updateFollowup = async (req, res) => {
   try {
     const { id } = req.params;
-    let followup = await Followup.findById(id);
+    let followup = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      followup = await Followup.findById(id);
+    }
+    if (!followup) {
+      followup = await Followup.findOne({
+        $or: [{ leadId: String(id) }, { leadId: `lead-${id}` }]
+      });
+    }
 
     if (!followup) {
       return res.status(404).json({
@@ -283,12 +299,12 @@ exports.updateFollowup = async (req, res) => {
       });
     }
 
-    followup = await Followup.findByIdAndUpdate(id, req.body, {
+    const updated = await Followup.findByIdAndUpdate(followup._id, req.body, {
       new: true,
       runValidators: true
     });
 
-    const obj = followup.toObject();
+    const obj = updated.toObject();
     const result = { ...obj, id: String(obj._id) };
 
     res.status(200).json({
@@ -310,7 +326,16 @@ exports.updateFollowup = async (req, res) => {
 exports.deleteFollowup = async (req, res) => {
   try {
     const { id } = req.params;
-    const followup = await Followup.findById(id);
+    let followup = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      followup = await Followup.findById(id);
+    }
+    if (!followup) {
+      followup = await Followup.findOne({
+        $or: [{ leadId: String(id) }, { leadId: `lead-${id}` }]
+      });
+    }
 
     if (!followup) {
       return res.status(404).json({
@@ -319,7 +344,7 @@ exports.deleteFollowup = async (req, res) => {
       });
     }
 
-    await Followup.findByIdAndDelete(id);
+    await Followup.findByIdAndDelete(followup._id);
 
     res.status(200).json({
       success: true,
